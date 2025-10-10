@@ -1,14 +1,15 @@
 from flask import Flask, jsonify, request
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from dotenv import load_dotenv
 import os
 from datetime import datetime
+from database import db
 
+load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration - uses environment variables for EB deployment
-# For local development, set these in your environment or use defaults
+# Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL') or \
     f"mysql+pymysql://{os.environ.get('DB_USER', 'root')}:" \
     f"{os.environ.get('DB_PASSWORD', 'password')}@" \
@@ -19,14 +20,14 @@ DATABASE_URL = os.environ.get('DATABASE_URL') or \
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-
-# Import models after db initialization
-from models import *
+db.init_app(app)
 
 @app.route('/')
 def health_check():
     return jsonify({"status": "DG Putt API is running", "timestamp": datetime.now().isoformat()})
+
+# Import models after db initialization
+from models import RegisteredPlayer, Tournament
 
 @app.route('/api/players', methods=['GET'])
 def get_players():
@@ -51,9 +52,14 @@ def get_tournaments():
     } for t in tournaments])
 
 if __name__ == '__main__':
-    # Create tables if they don't exist (for local development)
-    with app.app_context():
-        db.create_all()
+    # Test database connection
+    try:
+        with app.app_context():
+            with db.engine.connect() as conn:
+                conn.execute(db.text('SELECT 1'))
+        print("Database connection successful!")
+    except Exception as e:
+        print(f"Database connection failed: {e}")
     
     # Run in debug mode for local development
     app.run(debug=True, host='0.0.0.0', port=5000)
