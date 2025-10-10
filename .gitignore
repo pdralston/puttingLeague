@@ -205,3 +205,28 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project specific
+.env
+.env.local
+.env.production
+*.db
+*.sqlite
+*.sqlite3
+test_setup.py
+uploads/
+logs/
+.DS_Store
+
+# AWS/Deployment
+.elasticbeanstalk/
+.aws/
+*.pem
+*.key
+
+# Database dumps
+*.sql.backup
+dump.sql
+
+#Amazon Q context
+project_context.md
