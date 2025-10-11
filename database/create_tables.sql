@@ -11,7 +11,17 @@ CREATE TABLE registered_players (
     seasonal_cash DECIMAL(10,2) DEFAULT 0.00
 );
 
--- Player team pairing history
+-- Tournament player registrations with ace pot tracking
+CREATE TABLE tournament_registrations (
+    tournament_id INT NOT NULL,
+    player_id INT NOT NULL,
+    bought_ace_pot BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (tournament_id, player_id),
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(tournament_id),
+    FOREIGN KEY (player_id) REFERENCES registered_players(player_id)
+);
+
+-- Player team pairing statistics
 CREATE TABLE team_history (
     player_id INT,
     teammate_id INT,

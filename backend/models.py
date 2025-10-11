@@ -11,6 +11,13 @@ class RegisteredPlayer(db.Model):
     seasonal_points = db.Column(db.Integer, default=0)
     seasonal_cash = db.Column(db.Numeric(10, 2), default=0.00)
 
+class TournamentRegistration(db.Model):
+    __tablename__ = 'tournament_registrations'
+    
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.tournament_id'), primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('registered_players.player_id'), primary_key=True)
+    bought_ace_pot = db.Column(db.Boolean, default=False)
+
 class TeamHistory(db.Model):
     __tablename__ = 'team_history'
     

@@ -43,6 +43,18 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
 
 ## Database Structures
 
+### Tournament_Registrations
+- **PRIMARY KEY:** (Tournament_ID, Player_ID)
+- Tournament_ID
+  - Type: INT (FOREIGN KEY → Tournaments.Tournament_ID)
+  - Description: Reference to tournament
+- Player_ID
+  - Type: INT (FOREIGN KEY → Registered_Players.Player_ID)
+  - Description: Reference to registered player
+- Bought_Ace_Pot
+  - Type: BOOLEAN
+  - Description: Whether player bought into ace pot for this tournament
+
 ### Registered_Players
 - **PRIMARY KEY:** Player_ID
 - Player_ID
@@ -51,6 +63,9 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
 - Player_Name
   - Type: VARCHAR(100)
   - Description: Player's full name
+- Nickname
+  - Type: VARCHAR(50) (NULL allowed)
+  - Description: Optional display name for tournaments
 - Nickname
   - Type: VARCHAR(50) NULLABLE
   - Description: An optional name for display in the tournament bracket during events
@@ -74,10 +89,10 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Description: Reference to teammate
 - Times_Paired
   - Type: INT
-  - Description: Number of times this pairing has occurred in current season
+  - Description: Number of times this pairing has occurred (for statistics)
 - Average_Place
   - Type: DECIMAL(4,2)
-  - Description: Average tournament placement for this pairing
+  - Description: Average tournament placement for this pairing (for statistics)
 
 ### Season_Standings
 - **PRIMARY KEY:** (Player_ID, Season_Year)
@@ -205,10 +220,12 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
 
 - **Players** can have multiple **Team_History** records (one per teammate)
 - **Players** can have multiple **Season_Standings** records (one per season)
+- **Players** can register for multiple **Tournaments** through **Tournament_Registrations**
 - **Tournaments** contain multiple **Teams**
 - **Teams** participate in multiple **Matches**
 - **Matches** belong to one **Tournament** and reference two **Teams**
 - **Ace_Pot** tracks all balance changes over time, optionally linked to tournaments
+- **Tournament_Registrations** links players to tournaments with ace pot buy-in status
 
 ## Indexes for Performance
 
