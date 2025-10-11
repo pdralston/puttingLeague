@@ -51,6 +51,9 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
 - Player_Name
   - Type: VARCHAR(100)
   - Description: Player's full name
+- Nickname
+  - Type: VARCHAR(50) NULLABLE
+  - Description: An optional name for display in the tournament bracket during events
 - Division
   - Type: ENUM('Pro', 'Am', 'Junior')
   - Description: Current season division. Players who win AM get bumped to Pro. Juniors must be under 18.
