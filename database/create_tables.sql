@@ -5,6 +5,7 @@
 CREATE TABLE registered_players (
     player_id INT AUTO_INCREMENT PRIMARY KEY,
     player_name VARCHAR(100) NOT NULL,
+    nickname VARCHAR(50) NULL,
     division ENUM('Pro', 'Am', 'Junior') NOT NULL,
     seasonal_points INT DEFAULT 0,
     seasonal_cash DECIMAL(10,2) DEFAULT 0.00

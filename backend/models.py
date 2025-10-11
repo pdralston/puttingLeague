@@ -6,6 +6,7 @@ class RegisteredPlayer(db.Model):
     
     player_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     player_name = db.Column(db.String(100), nullable=False)
+    nickname = db.Column(db.String(50), nullable=True)
     division = db.Column(db.Enum('Pro', 'Am', 'Junior'), nullable=False)
     seasonal_points = db.Column(db.Integer, default=0)
     seasonal_cash = db.Column(db.Numeric(10, 2), default=0.00)
