@@ -215,6 +215,12 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
 - Match_Status
   - Type: ENUM('Scheduled', 'In_Progress', 'Completed')
   - Description: Current status of this match
+- Winner_Advances_To_Match_ID
+  - Type: INT (FOREIGN KEY → Matches.Match_ID)
+  - Description: Match ID where the winner of this match advances (NULL for final matches)
+- Loser_Advances_To_Match_ID
+  - Type: INT (FOREIGN KEY → Matches.Match_ID)
+  - Description: Match ID where the loser advances in double elimination (NULL if eliminated)
 
 ## Key Relationships
 
