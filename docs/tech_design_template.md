@@ -213,8 +213,39 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Description: Physical station/location where match is played
   - Constraint: CHECK (Station_Assignment BETWEEN 1 AND 6)
 - Match_Status
-  - Type: ENUM('Scheduled', 'In_Progress', 'Completed')
-  - Description: Current status of this match
+  - Type: ENUM('Scheduled', 'In_Progress', 'Completed', 'Pending')
+  - Description: Current status of this match. 'Pending' for placeholder matches awaiting team assignment
+- Winner_Advances_To_Match_ID
+  - Type: INT (FOREIGN KEY → Matches.Match_ID, NULL allowed)
+  - Description: Match ID where the winner advances (NULL for terminal matches)
+- Loser_Advances_To_Match_ID
+  - Type: INT (FOREIGN KEY → Matches.Match_ID, NULL allowed)
+  - Description: Match ID where the loser advances in double elimination (NULL if eliminated)
+
+## Tournament Architecture
+
+### Group Stage → Finals Separation
+The tournament system uses a clean separation between group stage and finals:
+
+**Group Stage Generation (`/generate-matches`):**
+- Creates regular matches for double elimination within groups
+- Terminates with Championship matches that represent the 4 survivors
+- Championship matches are auto-completed (no scoring) and hold survivor teams
+- For single group: 2 Championship matches (WB + LB survivors)
+- For multi-group: 4 Championship matches (2 per group)
+
+**Finals Generation (`/generate-finals`):**
+- Reads Championship matches to identify survivors and their loss counts
+- Creates separate 5-match finals bracket with proper seeding
+- WB survivors (0 losses) seed into WB Final
+- LB survivors (1 loss) seed into LB Semifinal
+- Complete double elimination through championship
+
+### Match Progression System
+Matches use `winner_advances_to_match_id` and `loser_advances_to_match_id` for automatic team advancement:
+- When match is scored, winners/losers automatically populate target matches
+- Championship matches have NULL advancement (terminal for group stage)
+- Finals matches have internal advancement within finals bracket
 
 ## Key Relationships
 
@@ -246,6 +277,19 @@ CREATE INDEX idx_team_tournament ON Teams(Tournament_ID);
 - Station_Assignment must be between 1 and 6 (configurable range)
 - Match numbering must be positive
 
+## API Endpoints
+
+### Tournament Management
+- `POST /api/tournaments/{id}/generate-matches` - Generate group stage bracket with Championship survivor matches
+- `POST /api/tournaments/{id}/generate-finals` - Read Championship matches and create finals bracket
+- `PUT /api/matches/{id}/score` - Score match and trigger automatic team advancement
+
+### Match Progression Flow
+1. **Group Stage**: Regular matches advance teams to Championship matches
+2. **Championship Matches**: Auto-completed containers holding 4 survivors (2 WB, 2 LB)
+3. **Finals Generation**: Separate endpoint reads survivors and creates 5-match finals bracket
+4. **Finals Execution**: Standard match scoring with internal finals advancement
+
 ## Notes
 
 - Ghost players: Player2_ID can be NULL in Teams table, Is_Ghost_Team flag for easy identification
@@ -253,3 +297,5 @@ CREATE INDEX idx_team_tournament ON Teams(Tournament_ID);
 - Double elimination: Handled through Stage_Type and Round_Type (Winners/Losers brackets)
 - Station assignment: Physical putting stations for match organization
 - Tournament linkage: Ace pot transactions can be linked to specific tournaments
+- **Championship Match Architecture**: Group stage ends with Championship matches that serve as containers for survivors, enabling clean separation between group and finals logic
+- **Automatic Advancement**: Match scoring triggers automatic team placement in subsequent matches via foreign key references

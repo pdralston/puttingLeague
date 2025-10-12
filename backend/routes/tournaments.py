@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import random
 from database import db
-from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot, Team
+from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot, Team, Match
 
 tournaments_bp = Blueprint('tournaments', __name__)
 
@@ -224,7 +224,9 @@ def generate_teams(tournament_id):
     players = [reg[1] for reg in registrations]
     num_players = len(players)
     
-    Team.query.filter_by(tournament_id=tournament_id).delete()
+    # Clear existing matches and teams for this tournament
+    Match.query.filter_by(tournament_id=tournament_id).delete()  # Delete matches first
+    Team.query.filter_by(tournament_id=tournament_id).delete()   # Then delete teams
     
     player_list = players.copy()
     teams = []
