@@ -29,27 +29,96 @@ def generate_matches(tournament_id):
     match_order = 1
     all_bye_teams = []
     
-    if len(teams) < 12:
-        # Single group stage for < 12 teams (no finals bracket yet)
+    if len(teams) <= 12:
+        # Single group stage for <= 12 teams
         group_matches, group_byes = _generate_group_matches(tournament_id, teams, 'Group_A', match_order)
         matches.extend(group_matches)
         all_bye_teams.extend(group_byes)
     else:
-        # Multi-stage format for 12+ teams: Group A/B -> Finals
+        # Multi-stage format for 13+ teams: Group A/B -> Finals
         mid_point = len(teams) // 2
         group_a_teams = teams[:mid_point]
         group_b_teams = teams[mid_point:]
         
-        # Generate Group A matches
+        # Generate Group A matches using single-group logic
         group_a_matches, group_a_byes = _generate_group_matches(tournament_id, group_a_teams, 'Group_A', match_order)
         matches.extend(group_a_matches)
         all_bye_teams.extend(group_a_byes)
         match_order += len(group_a_matches)
         
-        # Generate Group B matches  
+        # Generate Group B matches using single-group logic  
         group_b_matches, group_b_byes = _generate_group_matches(tournament_id, group_b_teams, 'Group_B', match_order)
         matches.extend(group_b_matches)
         all_bye_teams.extend(group_b_byes)
+        match_order += len(group_b_matches)
+        
+        # Fix Group A: Change existing Championship matches to regular matches and add final matches
+        group_a_championships = [m for m in group_a_matches if m.round_type == 'Championship']
+        for champ_match in group_a_championships:
+            champ_match.round_type = 'Winners'  # Change to regular match
+        
+        # Add Group A final matches: 1 winners final, 2 losers finals (last one Championship)
+        # Winners final
+        group_a_winners_final = Match(
+            tournament_id=tournament_id, stage_type='Group_A', round_type='Winners',
+            stage_match_number=len(group_a_matches) + 1, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Pending'
+        )
+        db.session.add(group_a_winners_final)
+        matches.append(group_a_winners_final)
+        match_order += 1
+        
+        # Losers semifinal
+        group_a_losers_semi = Match(
+            tournament_id=tournament_id, stage_type='Group_A', round_type='Losers',
+            stage_match_number=len(group_a_matches) + 2, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Pending'
+        )
+        db.session.add(group_a_losers_semi)
+        matches.append(group_a_losers_semi)
+        match_order += 1
+        
+        # Losers final (Championship)
+        group_a_losers_final = Match(
+            tournament_id=tournament_id, stage_type='Group_A', round_type='Championship',
+            stage_match_number=len(group_a_matches) + 3, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Completed'
+        )
+        db.session.add(group_a_losers_final)
+        matches.append(group_a_losers_final)
+        match_order += 1
+        
+        # Fix Group B: Same process
+        group_b_championships = [m for m in group_b_matches if m.round_type == 'Championship']
+        for champ_match in group_b_championships:
+            champ_match.round_type = 'Winners'
+        
+        # Add Group B final matches
+        group_b_winners_final = Match(
+            tournament_id=tournament_id, stage_type='Group_B', round_type='Winners',
+            stage_match_number=len(group_b_matches) + 1, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Pending'
+        )
+        db.session.add(group_b_winners_final)
+        matches.append(group_b_winners_final)
+        match_order += 1
+        
+        group_b_losers_semi = Match(
+            tournament_id=tournament_id, stage_type='Group_B', round_type='Losers',
+            stage_match_number=len(group_b_matches) + 2, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Pending'
+        )
+        db.session.add(group_b_losers_semi)
+        matches.append(group_b_losers_semi)
+        match_order += 1
+        
+        group_b_losers_final = Match(
+            tournament_id=tournament_id, stage_type='Group_B', round_type='Championship',
+            stage_match_number=len(group_b_matches) + 3, global_match_order=match_order,
+            team1_id=None, team2_id=None, match_status='Completed'
+        )
+        db.session.add(group_b_losers_final)
+        matches.append(group_b_losers_final)
     
     db.session.commit()
     
@@ -128,15 +197,27 @@ def _generate_single_stage_matches(tournament_id, teams, start_order, stage_type
         current_teams //= 2
         round_num += 1
     
-    # Generate losers bracket matches - only if we need to eliminate more teams
+    # Generate losers bracket matches - algorithmic approach for any team count
     losers_matches = []
-    if len(teams) > 4:  # Only generate losers matches if we have more than 4 teams
-        # For group stage: eliminate enough teams to leave exactly 4 survivors
-        winners_survivors = len(teams) // 2  # Winners from semifinals
-        losers_survivors = 4 - winners_survivors  # Remaining survivors from losers bracket
-        losers_eliminations_needed = (len(teams) // 2) - losers_survivors  # Teams to eliminate in losers bracket
+    if len(teams) >= 4:
+        # In double elimination: winners bracket eliminates (n-2) teams to losers bracket
+        # Losers bracket must eliminate (n-4) teams, leaving 2 survivors
+        teams_to_losers = len(teams) - 2
+        teams_to_eliminate = teams_to_losers - 2
         
-        for i in range(max(0, losers_eliminations_needed)):
+        # Calculate losers bracket structure algorithmically
+        # Need enough matches to eliminate teams_to_eliminate teams
+        # Each match eliminates 1 team, so need teams_to_eliminate matches minimum
+        # But also need to handle the flow of teams through rounds
+        
+        # For proper double elimination structure:
+        # Losers bracket must eliminate exactly (teams_to_eliminate) teams
+        # Each match eliminates 1 team, so need exactly teams_to_eliminate matches
+        # The final match winner advances to Losers Championship
+        
+        losers_matches_needed = teams_to_eliminate
+        
+        for i in range(losers_matches_needed):
             match = Match(
                 tournament_id=tournament_id,
                 stage_type=stage_type,
@@ -153,7 +234,7 @@ def _generate_single_stage_matches(tournament_id, teams, start_order, stage_type
     
     # Generate group stage ending Championship matches (4 survivors)
     if len(teams) >= 4:
-        # WB Championship (2 winners)
+        # WB Championship (2 winners) - NOT scoreable, just holds survivors
         wb_championship = Match(
             tournament_id=tournament_id,
             stage_type=stage_type,
@@ -162,14 +243,14 @@ def _generate_single_stage_matches(tournament_id, teams, start_order, stage_type
             global_match_order=start_order + len(matches),
             team1_id=None,  # Will be populated by advancement
             team2_id=None,  # Will be populated by advancement
-            match_status='Completed',  # Auto-completed, no scoring
+            match_status='Pending',  # Pending until populated, then becomes unscoreable
             winner_advances_to_match_id=None,  # No advancement from group stage
             loser_advances_to_match_id=None
         )
         db.session.add(wb_championship)
         matches.append(wb_championship)
         
-        # LB Championship (2 losers)  
+        # LB Championship (2 losers) - NOT scoreable, just holds survivors
         lb_championship = Match(
             tournament_id=tournament_id,
             stage_type=stage_type,
@@ -178,7 +259,7 @@ def _generate_single_stage_matches(tournament_id, teams, start_order, stage_type
             global_match_order=start_order + len(matches),
             team1_id=None,  # Will be populated by advancement
             team2_id=None,  # Will be populated by advancement
-            match_status='Completed',  # Auto-completed, no scoring
+            match_status='Pending',  # Pending until populated, then becomes unscoreable
             winner_advances_to_match_id=None,  # No advancement from group stage
             loser_advances_to_match_id=None
         )
@@ -216,23 +297,74 @@ def _generate_single_stage_matches(tournament_id, teams, start_order, stage_type
     
     # Set losers bracket advancement
     if losers_matches and winners_matches:
-        # First round winners bracket losers go to first losers matches
+        # First round winners bracket losers go to losers bracket
         first_round_winners = winners_matches[0]
+        
+        # Pair up first-round losers in losers bracket matches
         for i, winner_match in enumerate(first_round_winners):
-            if i < len(losers_matches) and winner_match.team1_id and winner_match.team2_id:
-                winner_match.loser_advances_to_match_id = losers_matches[i].match_id
+            if i < len(losers_matches) * 2:  # Each losers match takes 2 teams
+                losers_match_index = i // 2
+                winner_match.loser_advances_to_match_id = losers_matches[losers_match_index].match_id
+            else:
+                # Bye teams go directly to the next losers round match
+                if i == len(losers_matches) * 2 and len(losers_matches) > 0:
+                    # Place bye team in the match that the first losers match winner advances to
+                    next_match_id = losers_matches[0].winner_advances_to_match_id
+                    if next_match_id:
+                        winner_match.loser_advances_to_match_id = next_match_id
+                        # Pre-place the bye team in that match
+                        next_match = Match.query.get(next_match_id)
+                        if next_match and not next_match.team1_id:
+                            # Get the bye team (loser from this match when it happens)
+                            # We need to set this up so the bye team gets placed when the match is scored
+                            pass  # This will be handled by a different approach
         
-        # Set up internal losers bracket advancement
-        for i in range(len(losers_matches) - 1):
-            losers_matches[i].winner_advances_to_match_id = losers_matches[i + 1].match_id
+        # Handle bye team pre-placement for odd number of first-round matches
+        if len(first_round_winners) % 2 == 1:
+            # The last team (from the odd match) gets a bye
+            bye_match = first_round_winners[-1]
+            if bye_match.loser_advances_to_match_id:
+                # Pre-place the bye team in the target match
+                target_match = Match.query.get(bye_match.loser_advances_to_match_id)
+                if target_match:
+                    # The bye team will be the loser of this match, so pre-place them
+                    # We'll handle this by modifying the scoring logic to place bye teams
+                    pass
         
-        # Later winners bracket losers feed into specific losers bracket positions
-        losers_idx = len(first_round_winners)
-        for round_idx in range(1, len(winners_matches)):  # Include all rounds
-            for winner_match in winners_matches[round_idx]:
-                if losers_idx < len(losers_matches):
-                    winner_match.loser_advances_to_match_id = losers_matches[losers_idx].match_id
-                    losers_idx += 1
+        # Set up losers bracket internal advancement - proper double elimination structure
+        if len(losers_matches) > 0:
+            # For proper double elimination, losers matches should form a structured elimination tree
+            # Early matches eliminate teams, later matches handle survivors + new losers from winners
+            
+            # Simple chain for now - can be enhanced for more complex structures
+            for i in range(len(losers_matches) - 1):
+                losers_matches[i].winner_advances_to_match_id = losers_matches[i + 1].match_id
+            
+            # Last losers match winner advances to Losers Championship
+            if len(matches) >= 2:
+                losers_matches[-1].winner_advances_to_match_id = matches[-1].match_id
+        
+        # Set up winners bracket losers feeding into losers bracket - proper pairing
+        # In double elimination, teams should be paired for elimination, not distributed
+        
+        if losers_matches:
+            # Collect all winners bracket matches that need losers advancement
+            all_wb_matches = []
+            for round_matches in winners_matches:
+                all_wb_matches.extend(round_matches)
+            
+            # Pair teams properly: every 2 teams go to same losers match for elimination
+            losers_match_idx = 0
+            team_count = 0
+            
+            for match in all_wb_matches:
+                if losers_match_idx < len(losers_matches):
+                    match.loser_advances_to_match_id = losers_matches[losers_match_idx].match_id
+                    team_count += 1
+                    
+                    # Every 2 teams, move to next losers match (so they face each other)
+                    if team_count % 2 == 0:
+                        losers_match_idx += 1
     
     return matches
 
@@ -341,8 +473,191 @@ def _create_finals_bracket(tournament_id, survivors):
     
     return matches
 
+def _generate_multi_group_matches(tournament_id, teams, stage_type, start_order):
+    """Generate multi-group matches without Championship matches - stops at 2 survivors"""
+    matches = []
+    
+    if len(teams) < 2:
+        return matches
+    
+    # Find the next power of 2 that can accommodate all teams
+    bracket_size = 2
+    while bracket_size < len(teams):
+        bracket_size *= 2
+    
+    # Generate winners bracket matches - stop at 2 survivors instead of 4
+    winners_matches = []
+    current_teams = bracket_size
+    round_num = 1
+    
+    # Generate all winners bracket rounds except the final
+    while current_teams > 2:  # Stop when we have 2 teams left (the 2 survivors)
+        matches_in_round = current_teams // 2
+        for i in range(matches_in_round):
+            match = Match(
+                tournament_id=tournament_id,
+                stage_type=stage_type,
+                round_type='Winners',
+                stage_match_number=len(matches) + 1,
+                global_match_order=start_order + len(matches),
+                team1_id=None,
+                team2_id=None,
+                match_status='Pending' if round_num > 1 else 'Scheduled',
+                winner_advances_to_match_id=None,
+                loser_advances_to_match_id=None
+            )
+            db.session.add(match)
+            matches.append(match)
+            winners_matches.append(match)
+        
+        current_teams //= 2
+        round_num += 1
+    
+    # Generate losers bracket - eliminate to leave exactly 2 survivors total
+    losers_matches = []
+    if len(teams) > 2:
+        # For multi-group: eliminate enough teams to leave exactly 2 survivors
+        # We need to eliminate (len(teams) - 2) teams through losers bracket
+        teams_to_eliminate = len(teams) - 2
+        
+        # Generate losers bracket matches to eliminate the required number of teams
+        for i in range(teams_to_eliminate):
+            match = Match(
+                tournament_id=tournament_id,
+                stage_type=stage_type,
+                round_type='Losers',
+                stage_match_number=len(matches) + 1,
+                global_match_order=start_order + len(matches),
+                team1_id=None,
+                team2_id=None,
+                match_status='Pending',
+                winner_advances_to_match_id=None,
+                loser_advances_to_match_id=None
+            )
+            db.session.add(match)
+            matches.append(match)
+            losers_matches.append(match)
+    
+    return matches
+    """Generate multi-group matches by using single-group logic but stopping at 2 survivors"""
+    # Use the existing single-group logic but modify stopping condition
+    matches = []
+    
+    # Calculate bracket size (next power of 2)
+    bracket_size = 1
+    while bracket_size < len(teams):
+        bracket_size *= 2
+    
+    # Generate winners bracket matches - stop at 2 survivors instead of 4
+    winners_matches = []
+    current_teams = bracket_size
+    round_num = 1
+    
+    while current_teams > 2:  # Stop when 2 teams remain (instead of 4)
+        round_matches = []
+        for i in range(current_teams // 2):
+            team1_id = teams[i * 2].team_id if i * 2 < len(teams) else None
+            team2_id = teams[i * 2 + 1].team_id if i * 2 + 1 < len(teams) else None
+            status = 'Scheduled' if team1_id and team2_id else 'Pending'
+            
+            match = Match(
+                tournament_id=tournament_id,
+                stage_type=stage_type,
+                round_type='Winners',
+                stage_match_number=len(matches) + 1,
+                global_match_order=start_order + len(matches),
+                team1_id=team1_id,
+                team2_id=team2_id,
+                match_status=status
+            )
+            db.session.add(match)
+            matches.append(match)
+            round_matches.append(match)
+        
+        winners_matches.append(round_matches)
+        current_teams //= 2
+        round_num += 1
+    
+    # Generate losers bracket - eliminate to leave exactly 2 survivors total
+    losers_matches = []
+    if len(teams) > 2:
+        # For multi-group: eliminate enough teams to leave exactly 2 survivors
+        teams_to_eliminate = len(teams) - 2
+        winners_eliminations = len(teams) // 2 - 1  # Winners bracket eliminates all but 2
+        losers_eliminations_needed = teams_to_eliminate - winners_eliminations
+        
+        for i in range(max(0, losers_eliminations_needed)):
+            match = Match(
+                tournament_id=tournament_id,
+                stage_type=stage_type,
+                round_type='Losers',
+                stage_match_number=len(matches) + 1,
+                global_match_order=start_order + len(matches),
+                team1_id=None,
+                team2_id=None,
+                match_status='Pending'
+            )
+            db.session.add(match)
+            matches.append(match)
+            losers_matches.append(match)
+    
+    # Generate Championship matches for 2 survivors (1 WB winner, 1 LB winner)
+    if len(teams) >= 2:
+        # WB Championship (1 winner)
+        wb_championship = Match(
+            tournament_id=tournament_id,
+            stage_type=stage_type,
+            round_type='Championship',
+            stage_match_number=len(matches) + 1,
+            global_match_order=start_order + len(matches),
+            team1_id=None,
+            team2_id=None,
+            match_status='Completed',
+            winner_advances_to_match_id=None,
+            loser_advances_to_match_id=None
+        )
+        db.session.add(wb_championship)
+        matches.append(wb_championship)
+        
+        # LB Championship (1 loser survivor)  
+        lb_championship = Match(
+            tournament_id=tournament_id,
+            stage_type=stage_type,
+            round_type='Championship',
+            stage_match_number=len(matches) + 1,
+            global_match_order=start_order + len(matches),
+            team1_id=None,
+            team2_id=None,
+            match_status='Completed',
+            winner_advances_to_match_id=None,
+            loser_advances_to_match_id=None
+        )
+        db.session.add(lb_championship)
+        matches.append(lb_championship)
+        
+        # Commit to get match IDs
+        db.session.flush()
+        
+        # Set advancement paths to Championship matches
+        if winners_matches and winners_matches[-1]:
+            # The final winners bracket match advances winner to WB Championship, loser to LB Championship
+            winners_matches[-1][-1].winner_advances_to_match_id = wb_championship.match_id
+            winners_matches[-1][-1].loser_advances_to_match_id = lb_championship.match_id
+        
+        if losers_matches:
+            # Final losers bracket match winner goes to LB Championship
+            losers_matches[-1].winner_advances_to_match_id = lb_championship.match_id
+        
+        # Set up losers bracket advancement from winners bracket
+        for round_idx, round_matches in enumerate(winners_matches[:-1]):  # All but final round
+            for match_idx, match in enumerate(round_matches):
+                if match_idx < len(losers_matches):
+                    match.loser_advances_to_match_id = losers_matches[match_idx].match_id
+    
+    return matches
+
 def _generate_group_matches(tournament_id, teams, stage_type, start_order):
-    """Generate group stage double elimination bracket"""
+    """Generate single group stage double elimination bracket - stops at 4 survivors"""
     matches = _generate_single_stage_matches(tournament_id, teams, start_order, stage_type)
     return matches, []  # Return empty bye_teams list for now
 
@@ -367,6 +682,10 @@ def score_match(match_id):
     if tournament.status not in ['Scheduled', 'In_Progress']:
         return jsonify({'error': f'Cannot score matches for tournament with status: {tournament.status}'}), 400
     
+    # Prevent scoring of Championship matches in group stage (they hold survivors, not compete)
+    if match.round_type == 'Championship' and match.stage_type.startswith('Group'):
+        return jsonify({'error': 'Championship matches in group stage cannot be scored - they hold survivors for finals seeding'}), 400
+    
     # Validate scores
     try:
         team1_score = int(data.get('team1_score', 0))
@@ -385,8 +704,9 @@ def score_match(match_id):
     
     if is_rescore:
         # Store old results for rollback
-        old_winner_team_id = match.team1_id if match.team1_score > match.team2_score else match.team2_id
-        old_loser_team_id = match.team2_id if match.team1_score > match.team2_score else match.team1_id
+        if match.team1_score is not None and match.team2_score is not None:
+            old_winner_team_id = match.team1_id if match.team1_score > match.team2_score else match.team2_id
+            old_loser_team_id = match.team2_id if match.team1_score > match.team2_score else match.team1_id
     
     # Update match scores
     match.team1_score = team1_score
