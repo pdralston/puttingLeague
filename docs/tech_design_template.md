@@ -173,10 +173,6 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Constraint: CHECK (Final_Place > 0 OR Final_Place IS NULL)
 
 ### Matches
-- **PRIMARY KEY:** Match_ID
-- Match_ID
-  - Type: INT (AUTO_INCREMENT)
-  - Description: Unique identifier for each match
 - Tournament_ID
   - Type: INT (FOREIGN KEY → Tournaments.Tournament_ID)
   - Description: Tournament this match belongs to
@@ -190,10 +186,10 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Type: INT
   - Description: Match number within the specific stage/bracket
   - Constraint: CHECK (Stage_Match_Number > 0)
-- Global_Match_Order
+- Match_Order
   - Type: INT
   - Description: Chronological order across entire tournament
-  - Constraint: CHECK (Global_Match_Order > 0)
+  - Constraint: CHECK (Match_Order > 0)
 - Team1_ID
   - Type: INT (FOREIGN KEY → Teams.Team_ID)
   - Description: First team in match
@@ -230,9 +226,39 @@ The tournament system uses a clean separation between group stage and finals:
 **Group Stage Generation (`/generate-matches`):**
 - Creates regular matches for double elimination within groups
 - Terminates with Championship matches that represent the 4 survivors
-- Championship matches are auto-completed (no scoring) and hold survivor teams
+- Championship matches are auto-completed (no scoring allowed) and hold survivor teams
 - For single group: 2 Championship matches (WB + LB survivors)
 - For multi-group: 4 Championship matches (2 per group)
+
+This is accomplished under the hood by having two helper methods, `_generate_single_group_matches` and `_generate_multi_group_matches`.
+psuedo-code
+```
+_generate_single_group_matches(teamsList) 
+    teams_count = len(teamsList)
+    using teams_count calculate the number of matches needed in winner and loser brackets so that there are two teams remaining in the winners bracket and two in the loser bracket
+    Generate the correct number of matches and assign correct flow values for winners and losers
+    Specify the last match in each bracket as a Championship match
+    seed the matches with the teams in TeamsList
+    If there is a match with only a single team, advance that team to the next match in the winners bracket flow
+```
+
+psuedo-code
+```
+_generate_multi_group_matches(teamsList)
+    groupA = all teams designated Group A
+    groupB = all teams designated Group B
+    matchesA = _generate_single_group_matches(groupA)
+    matchesB = _generate_single_group_matches(groupB)
+    add a new championship match that the top winners of each group will flow to
+    add a new championship match that the top losers of each group will flow to
+    remove the championship designation from each winners bracket of matchesA and matchesB
+    update the flow of the winners of the previously designated Championship matches to the newly created championship match
+    add a new losers bracket match to matchesA and matchesB to follow the respective losers bracket championship
+    update the flow of the winners of the loser bracket championship round to this newly created match
+    remove the championship designation from the updated match
+    update the flow for losers in the previously designated winners bracket championship to this newly created losers match in each matchesA and matchesB
+    set the winner flow for the newly created loser matches to the newly created championship match for losers
+```
 
 **Finals Generation (`/generate-finals`):**
 - Reads Championship matches to identify survivors and their loss counts
@@ -265,7 +291,7 @@ Matches use `winner_advances_to_match_id` and `loser_advances_to_match_id` for a
 CREATE INDEX idx_player_name ON Registered_Players(Player_Name);
 CREATE INDEX idx_tournament_date ON Tournaments(Tournament_Date);
 CREATE INDEX idx_season_year ON Season_Standings(Season_Year);
-CREATE INDEX idx_match_tournament ON Matches(Tournament_ID, Global_Match_Order);
+CREATE INDEX idx_match_tournament ON Matches(Tournament_ID, Match_Order);
 CREATE INDEX idx_team_tournament ON Teams(Tournament_ID);
 ```
 
