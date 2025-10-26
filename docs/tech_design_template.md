@@ -230,35 +230,48 @@ The tournament system uses a clean separation between group stage and finals:
 - For single group: 2 Championship matches (WB + LB survivors)
 - For multi-group: 4 Championship matches (2 per group)
 
-This is accomplished under the hood by having two helper methods, `_generate_single_group_matches` and `_generate_multi_group_matches`.
-psuedo-code
-```
-_generate_single_group_matches(teamsList) 
-    teams_count = len(teamsList)
-    using teams_count calculate the number of matches needed in winner and loser brackets so that there are two teams remaining in the winners bracket and two in the loser bracket
-    Generate the correct number of matches and assign correct flow values for winners and losers
-    Specify the last match in each bracket as a Championship match
-    seed the matches with the teams in TeamsList
-    If there is a match with only a single team, advance that team to the next match in the winners bracket flow
-```
+There are distinct edge cases to keep in mind:
+1. Happy Path, power of 2 number of teams.
+  - For power of 2 number of teams there should never be bye matches
+2. Even, Non-power of 2 number of teams
+  - Bye matches dispersed within the Winner and Loser brackets
+3. Odd number of teams
+  - Bye match in the first round of the winners bracket
+  - By matches dispersed within Winner and Loser Brackets
 
-psuedo-code
-```
-_generate_multi_group_matches(teamsList)
-    groupA = all teams designated Group A
-    groupB = all teams designated Group B
-    matchesA = _generate_single_group_matches(groupA)
-    matchesB = _generate_single_group_matches(groupB)
-    add a new championship match that the top winners of each group will flow to
-    add a new championship match that the top losers of each group will flow to
-    remove the championship designation from each winners bracket of matchesA and matchesB
-    update the flow of the winners of the previously designated Championship matches to the newly created championship match
-    add a new losers bracket match to matchesA and matchesB to follow the respective losers bracket championship
-    update the flow of the winners of the loser bracket championship round to this newly created match
-    remove the championship designation from the updated match
-    update the flow for losers in the previously designated winners bracket championship to this newly created losers match in each matchesA and matchesB
-    set the winner flow for the newly created loser matches to the newly created championship match for losers
-```
+Case 1:
+ - Generate  2n-2 matches (Do not generate the Championship match)
+ - Determine number of winner Bracket Rounds (log_(2)n)
+ - Number of matches in winners bracket for round R => R_n = R_(n-1)/2 where R_1 == Number of teams/2
+   - Might be good to just set this as a constant lookup table
+ - Determine number of Loser Bracket Rounds 2*(ceil(log_n(n))-2)+2
+ - Number of matches in Loser bracket for round R_n => 1/2R_(n-1) + winnerR_n where R_1 = winnerR_1
+   - same as above, may be best to save as a lookup table
+ - Build the winners bracket
+   - For each Round in winners bracket
+   - matchId = 1
+   - For i in range 0 to number of matches in round
+     - currMatch = match[matchId]
+     - currMatch[matchId].position = i
+     - currMatch.round_type = winners
+     - currMatch.status = pending
+     - ++matchId
+   - matchId += numMatches in Loser Bracket at round
+ - Build Losers Bracket
+   - round = 0
+   - For match in matches
+     - if match.roundType == Winner continue
+     - ++round
+     - for i in range 0 to number of loser matches in round
+       - if match.roundType == Winner throw
+       - match.position = i
+       - match.round_type = losers
+       - match.status = pending
+       - ++match
+
+      
+     
+ 
 
 **Finals Generation (`/generate-finals`):**
 - Reads Championship matches to identify survivors and their loss counts
@@ -282,7 +295,7 @@ Matches use `winner_advances_to_match_id` and `loser_advances_to_match_id` for a
 - **Teams** participate in multiple **Matches**
 - **Matches** belong to one **Tournament** and reference two **Teams**
 - **Ace_Pot** tracks all balance changes over time, optionally linked to tournaments
-- **Tournament_Registrations** links players to tournaments with ace pot buy-in status
+- **Tournament_Registrations** links players to t7ournaments with ace pot buy-in status
 
 ## Indexes for Performance
 

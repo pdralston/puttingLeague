@@ -212,6 +212,7 @@ def get_tournament_matches(tournament_id):
         'match_id': m.match_id,
         'match_order': m.match_order,
         'round_type': m.round_type,
+        'round_number': m.round_number,
         'team1_id': m.team1_id,
         'team2_id': m.team2_id,
         'team1_score': m.team1_score,

@@ -20,185 +20,160 @@ def generate_matches(tournament_id):
         return jsonify({'error': 'No teams found for tournament'}), 400
     
     team_count = len(teams)
-    if team_count <= 12:
-        # Single group tournament
-        matches = _generate_single_group_matches(tournament_id, teams, 1)
-        db.session.commit()
-        
-        return jsonify({
-            'tournament_id': tournament_id,
-            'total_matches': len(matches),
-            'team_count': team_count,
-            'bracket_type': 'single_group',
-            'matches': [{'match_id': m.stage_match_number, 'round_type': m.round_type, 'stage_type': m.stage_type} for m in matches]
-        }), 201
-    else:
-        return jsonify({'error': 'Multi-group tournaments not yet implemented'}), 501
+    # Single group tournament
+    matches = _generate_winners_bracket(tournament_id, teams, 1)
+    _generate_losers_bracket(matches)
+    for match in matches:
+        db.session.add(match)
+    db.session.commit()
+    return jsonify({
+        'tournament_id': tournament_id,
+        'matches_created': len(matches)
+    }), 201
     
 
-def _generate_single_group_matches(tournament_id, teams, start_order):
-    """Generate complete single stage double elimination bracket"""
+def _generate_winners_bracket(tournament_id, teams, start_order):
+    """Generate winners bracket only"""
     import random
+    import math
     
     team_count = len(teams)
     if team_count < 4:
         raise ValueError("Need at least 4 teams")
     
     random.shuffle(teams)
+    
+    # Round up to next power of 2
+    bracket_size = 1
+    while bracket_size < team_count:
+        bracket_size *= 2
+    
     matches = []
     match_id = start_order
     
-    # Calculate structure
-    wb_rounds = (team_count - 1).bit_length()
-    lb_rounds = 2 * (wb_rounds - 1)
+    # Winners bracket: log2(bracket_size) rounds
+    wb_rounds = int(math.log2(bracket_size))
+    wb_matches = []
     
-    # Create matches in chronological order
-    for round_num in range(max(wb_rounds, lb_rounds + 1)):
-        # Add WB matches for this round
-        if round_num < wb_rounds:
-            wb_matches_in_round = team_count // (2 ** (round_num + 1))
-            for pos in range(wb_matches_in_round):
-                matches.append({
-                    'id': match_id,
-                    'bracket': 'wb',
-                    'round': round_num,
-                    'position': pos,
-                    'winner_advances_to': None,
-                    'loser_advances_to': None
-                })
-                match_id += 1
-        
-        # Add LB matches for this round
-        if round_num < lb_rounds:
-            if round_num % 2 == 0:  # Dropdown round
-                if round_num == 0:
-                    lb_matches_in_round = team_count // 4  # WB R1 losers
-                else:
-                    lb_matches_in_round = 1  # Later dropdown rounds
-            else:  # Elimination round
-                lb_matches_in_round = team_count // (2 ** (round_num + 2))
-            
-            for pos in range(lb_matches_in_round):
-                matches.append({
-                    'id': match_id,
-                    'bracket': 'lb',
-                    'round': round_num,
-                    'position': pos,
-                    'winner_advances_to': None,
-                    'loser_advances_to': None
-                })
-                match_id += 1
+    # Create winners bracket matches
+    for round_num in range(wb_rounds):
+        matches_in_round = bracket_size >> (round_num + 1)
+        round_matches = []
+        for pos in range(matches_in_round):
+            match = {
+                'id': match_id,
+                'round_num': round_num,
+                'position': pos
+            }
+            matches.append(match)
+            round_matches.append(match)
+            match_id += 1
+        wb_matches.append(round_matches)
     
-    # Add Championship match
-    matches.append({
-        'id': match_id,
-        'bracket': 'championship',
-        'round': 0,
-        'position': 0,
-        'winner_advances_to': None,
-        'loser_advances_to': None
-    })
-    
-    # Set advancement IDs
+    # Set winner advancement paths
     for match in matches:
-        if match['bracket'] == 'wb' and match['round'] < wb_rounds - 1:
-            # WB winner advancement: (r+1, p//2)
-            target_round = match['round'] + 1
-            target_pos = match['position'] // 2
-            for target in matches:
-                if (target['bracket'] == 'wb' and 
-                    target['round'] == target_round and 
-                    target['position'] == target_pos):
-                    match['winner_advances_to'] = target['id']
-                    break
+        match['winner_to'] = None
+        match['loser_to'] = None
         
-        # WB final winner goes to championship
-        elif match['bracket'] == 'wb' and match['round'] == wb_rounds - 1:
-            for target in matches:
-                if target['bracket'] == 'championship':
-                    match['winner_advances_to'] = target['id']
-                    break
+        round_num = match['round_num']
+        pos = match['position']
         
-        # WB loser advancement to LB
-        if match['bracket'] == 'wb':
-            lb_target_round = 2 * match['round']  # WB R0→LB R0, WB R1→LB R2, etc.
-            if lb_target_round < lb_rounds:
-                target_pos = match['position'] // 2  # Distribute based on position
-                for target in matches:
-                    if (target['bracket'] == 'lb' and 
-                        target['round'] == lb_target_round and
-                        target['position'] == target_pos):
-                        match['loser_advances_to'] = target['id']
-                        break
-            elif match['round'] == wb_rounds - 1:  # WB final loser
-                for target in matches:
-                    if target['bracket'] == 'championship':
-                        match['loser_advances_to'] = target['id']
-                        break
-        
-        # LB internal advancement
-        elif match['bracket'] == 'lb':
-            if match['round'] % 2 == 1:  # Elimination round
-                if match['round'] < lb_rounds - 1:  # Not final LB round
-                    target_round = match['round'] + 1
-                    for target in matches:
-                        if (target['bracket'] == 'lb' and 
-                            target['round'] == target_round):
-                            match['winner_advances_to'] = target['id']
-                            break
-                else:  # Final LB round goes to championship
-                    for target in matches:
-                        if target['bracket'] == 'championship':
-                            match['winner_advances_to'] = target['id']
-                            break
-            else:  # Dropdown round
-                target_round = match['round'] + 1
-                if target_round < lb_rounds:
-                    for target in matches:
-                        if (target['bracket'] == 'lb' and 
-                            target['round'] == target_round):
-                            match['winner_advances_to'] = target['id']
-                            break
+        # Winner advancement
+        if round_num < wb_rounds - 1:
+            next_pos = pos // 2
+            match['winner_to'] = wb_matches[round_num + 1][next_pos]['id']
     
-    # Convert to Match objects
+    # Convert to database objects
     db_matches = []
-    for match_data in matches:
-        round_type = 'Championship' if match_data['bracket'] == 'championship' else ('Winners' if match_data['bracket'] == 'wb' else 'Losers')
-        
-        match = Match(
+    for match in matches:
+        db_match = Match(
             tournament_id=tournament_id,
-            match_id=match_data['id'],
+            match_id=match['id'],
             stage_type='Group_A',
-            round_type=round_type,
-            stage_match_number=match_data['id'],
-            match_order=match_data['id'],
-            winner_advances_to_match_id=match_data['winner_advances_to'],
-            loser_advances_to_match_id=match_data['loser_advances_to'],
+            round_type='Winners',
+            round_number=match['round_num'],
+            position_in_round=match['position'],
+            stage_match_number=match['id'],
+            match_order=match['id'],
+            winner_advances_to_match_id=match['winner_to'],
+            loser_advances_to_match_id=match['loser_to'],
             match_status='Pending'
         )
         
-        # Seed first WB round with teams
-        if match_data['bracket'] == 'wb' and match_data['round'] == 0:
-            pos = match_data['position']
-            if pos * 2 < len(teams):
-                match.team1_id = teams[pos * 2].team_id
-            if pos * 2 + 1 < len(teams):
-                match.team2_id = teams[pos * 2 + 1].team_id
-                match.match_status = 'Scheduled'
+        # Seed teams into first round
+        if match['round_num'] == 0:
+            pos = match['position']
+            if pos * 2 < team_count:
+                db_match.team1_id = teams[pos * 2].team_id
+                if pos * 2 + 1 < team_count:
+                    db_match.team2_id = teams[pos * 2 + 1].team_id
+                    db_match.match_status = 'Scheduled'
         
-        db.session.add(match)
-        db_matches.append(match)
-    
-    # Fix final LB match advancement: find highest ID losers match and set it to advance to championship
-    championship_match = next(m for m in db_matches if m.round_type == 'Championship')
-    final_lb_match = max((m for m in db_matches if m.round_type == 'Losers'), key=lambda x: x.match_id)
-    final_lb_match.winner_advances_to_match_id = championship_match.match_id
+        db_matches.append(db_match)
     
     return db_matches
 
-def _generate_group_matches(tournament_id, teams, stage_type, start_order):
-    """Generate complete double elimination bracket for a group"""
-    print("TODO: implement _generate_single_group_matches")
+def _generate_losers_bracket(matches:list[Match]):
+    start_match_id = matches[-1].match_id
+    tournament_id = matches[-1].tournament_id
+
+    """Generate losers bracket based on existing winners bracket"""
+    if not matches:
+        raise ValueError("No winners bracket found")
+    
+    team_count = len([m for m in matches if m.round_number == 0]) * 2
+    num_lb_matches = len(matches) - 2
+    num_lb_rounds = 2 * math.log2(team_count) - 1
+    lb_matches = []
+    wb_round_match_count = team_count / 2
+    lb_round_match_count = wb_round_match_count / 2
+    pos = 0
+    new_match_id = start_match_id + 1
+    for i in range(int(num_lb_rounds)):
+        matches_for_round = wb_round_match_count / 2 if i%2 == 0 else lb_round_match_count
+        if i%2 == 0:
+            wb_round_match_count = wb_round_match_count / 2
+            lb_round_match_count = matches_for_round
+        for j in range(int(matches_for_round)):
+            print(i)
+            lb_matches.append(
+                Match(
+                    tournament_id=tournament_id,
+                    match_id=new_match_id,
+                    stage_type='Group_A',
+                    round_type='Losers',
+                    round_number=i,
+                    position_in_round=pos,
+                    stage_match_number=new_match_id,
+                    match_order=new_match_id,
+                    match_status='Pending'
+                ))
+            new_match_id += 1
+            pos += 1
+        pos = 0
+    
+    # Set WB loser paths
+    wb_by_round = {}
+    for match in matches:
+        if match.round_number not in wb_by_round:
+            wb_by_round[match.round_number] = []
+        wb_by_round[match.round_number].append(match)
+    
+    # WB R0 losers → LB R0
+    for i, wb_match in enumerate(wb_by_round[0]):
+        wb_match.loser_advances_to_match_id = lb_matches[i // 2].match_id
+    
+    # WB R1 losers → LB R1 (join with LB R0 winners)
+    if 1 in wb_by_round:
+        for i, wb_match in enumerate(wb_by_round[1]):
+            wb_match.loser_advances_to_match_id = lb_matches[2 + i].match_id
+    
+    # WB R2 loser → LB R3 (join with LB R2 winner)
+    if 2 in wb_by_round:
+        wb_by_round[2][0].loser_advances_to_match_id = lb_matches[5].match_id
+
+    matches.extend(lb_matches)
+  
 
 @matches_bp.route('/api/matches/<int:match_id>/score', methods=['PUT'])
 def score_match(match_id):

@@ -70,6 +70,8 @@ class Match(db.Model):
     match_id = db.Column(db.Integer, primary_key=True)
     stage_type = db.Column(db.Enum('Group_A', 'Group_B', 'Finals'), nullable=False)
     round_type = db.Column(db.Enum('Winners', 'Losers', 'Championship'), nullable=False)
+    round_number = db.Column(db.Integer, nullable=False)
+    position_in_round = db.Column(db.Integer, nullable=False)
     stage_match_number = db.Column(db.Integer, nullable=False)
     match_order = db.Column(db.Integer, nullable=False)
     team1_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=True)
