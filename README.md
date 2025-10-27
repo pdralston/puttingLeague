@@ -28,7 +28,7 @@ python app.py
 
 ### Database Setup
 ```bash
-mysql -u root -p your_database < database/create_tables.sql
+docker exec -i <mysql_container_name> mysql -u root -p your_database < database/create_tables.sql
 ```
 
 ## Project Structure

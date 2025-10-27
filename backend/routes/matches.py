@@ -159,18 +159,35 @@ def _generate_losers_bracket(matches:list[Match]):
             wb_by_round[match.round_number] = []
         wb_by_round[match.round_number].append(match)
     
-    # WB R0 losers → LB R0
-    for i, wb_match in enumerate(wb_by_round[0]):
-        wb_match.loser_advances_to_match_id = lb_matches[i // 2].match_id
+    lb_by_round = {}
+    for match in lb_matches:
+        if match.round_number not in lb_by_round:
+            lb_by_round[match.round_number] = []
+        lb_by_round[match.round_number].append(match)
     
-    # WB R1 losers → LB R1 (join with LB R0 winners)
-    if 1 in wb_by_round:
-        for i, wb_match in enumerate(wb_by_round[1]):
-            wb_match.loser_advances_to_match_id = lb_matches[2 + i].match_id
+    # Seed Round 1 loser bracket with losers of Round 1 Winners
+    pos = 0
+    for i in range(0, len(wb_by_round[0]), 2):
+        wb_by_round[0][i].loser_advances_to_match_id = lb_by_round[0][pos].match_id
+        if wb_by_round[0][i+1]:
+            wb_by_round[0][i+1].loser_advances_to_match_id = lb_by_round[0][pos].match_id
+        pos += 1
     
-    # WB R2 loser → LB R3 (join with LB R2 winner)
-    if 2 in wb_by_round:
-        wb_by_round[2][0].loser_advances_to_match_id = lb_matches[5].match_id
+    # Map the remaining losers from Winners Bracket to losers bracket
+    loser_round_adjust = 0
+    for i in range(1, len(wb_by_round)):
+        pos = 0
+        for match in wb_by_round[i]:
+            match.loser_advances_to_match_id = lb_by_round[i+loser_round_adjust][pos].match_id
+            pos += 1
+        loser_round_adjust += 1
+        pos = 0
+    
+    # Map Loser Bracket Progression
+    for i in range(len(lb_by_round)-1):
+        for match in lb_by_round[i]:
+            match.winner_advances_to_match_id = lb_by_round[i+1][match.position_in_round // 2].match_id
+
 
     matches.extend(lb_matches)
   
