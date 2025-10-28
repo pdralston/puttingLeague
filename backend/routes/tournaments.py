@@ -218,6 +218,7 @@ def get_tournament_matches(tournament_id):
         'team1_score': m.team1_score,
         'team2_score': m.team2_score,
         'match_status': m.match_status,
+        'station_assignment': m.station_assignment,
         'winner_advances_to_match_id': m.winner_advances_to_match_id,
         'loser_advances_to_match_id': m.loser_advances_to_match_id
     } for m in matches])
