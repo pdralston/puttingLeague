@@ -173,10 +173,6 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Constraint: CHECK (Final_Place > 0 OR Final_Place IS NULL)
 
 ### Matches
-- **PRIMARY KEY:** Match_ID
-- Match_ID
-  - Type: INT (AUTO_INCREMENT)
-  - Description: Unique identifier for each match
 - Tournament_ID
   - Type: INT (FOREIGN KEY → Tournaments.Tournament_ID)
   - Description: Tournament this match belongs to
@@ -190,10 +186,10 @@ Featuring an automated mulit-stage double elimination tournament bracket manager
   - Type: INT
   - Description: Match number within the specific stage/bracket
   - Constraint: CHECK (Stage_Match_Number > 0)
-- Global_Match_Order
+- Match_Order
   - Type: INT
   - Description: Chronological order across entire tournament
-  - Constraint: CHECK (Global_Match_Order > 0)
+  - Constraint: CHECK (Match_Order > 0)
 - Team1_ID
   - Type: INT (FOREIGN KEY → Teams.Team_ID)
   - Description: First team in match
@@ -230,9 +226,52 @@ The tournament system uses a clean separation between group stage and finals:
 **Group Stage Generation (`/generate-matches`):**
 - Creates regular matches for double elimination within groups
 - Terminates with Championship matches that represent the 4 survivors
-- Championship matches are auto-completed (no scoring) and hold survivor teams
+- Championship matches are auto-completed (no scoring allowed) and hold survivor teams
 - For single group: 2 Championship matches (WB + LB survivors)
 - For multi-group: 4 Championship matches (2 per group)
+
+There are distinct edge cases to keep in mind:
+1. Happy Path, power of 2 number of teams.
+  - For power of 2 number of teams there should never be bye matches
+2. Even, Non-power of 2 number of teams
+  - Bye matches dispersed within the Winner and Loser brackets
+3. Odd number of teams
+  - Bye match in the first round of the winners bracket
+  - By matches dispersed within Winner and Loser Brackets
+
+Case 1:
+ - Generate  2n-2 matches (Do not generate the Championship match)
+ - Determine number of winner Bracket Rounds (log_(2)n)
+ - Number of matches in winners bracket for round R => R_n = R_(n-1)/2 where R_1 == Number of teams/2
+   - Might be good to just set this as a constant lookup table
+ - Determine number of Loser Bracket Rounds 2*(ceil(log_n(n))-2)+2
+ - Number of matches in Loser bracket for round R_n => 1/2R_(n-1) + winnerR_n where R_1 = winnerR_1
+   - same as above, may be best to save as a lookup table
+ - Build the winners bracket
+   - For each Round in winners bracket
+   - matchId = 1
+   - For i in range 0 to number of matches in round
+     - currMatch = match[matchId]
+     - currMatch[matchId].position = i
+     - currMatch.round_type = winners
+     - currMatch.status = pending
+     - ++matchId
+   - matchId += numMatches in Loser Bracket at round
+ - Build Losers Bracket
+   - round = 0
+   - For match in matches
+     - if match.roundType == Winner continue
+     - ++round
+     - for i in range 0 to number of loser matches in round
+       - if match.roundType == Winner throw
+       - match.position = i
+       - match.round_type = losers
+       - match.status = pending
+       - ++match
+
+      
+     
+ 
 
 **Finals Generation (`/generate-finals`):**
 - Reads Championship matches to identify survivors and their loss counts
@@ -256,7 +295,7 @@ Matches use `winner_advances_to_match_id` and `loser_advances_to_match_id` for a
 - **Teams** participate in multiple **Matches**
 - **Matches** belong to one **Tournament** and reference two **Teams**
 - **Ace_Pot** tracks all balance changes over time, optionally linked to tournaments
-- **Tournament_Registrations** links players to tournaments with ace pot buy-in status
+- **Tournament_Registrations** links players to t7ournaments with ace pot buy-in status
 
 ## Indexes for Performance
 
@@ -265,7 +304,7 @@ Matches use `winner_advances_to_match_id` and `loser_advances_to_match_id` for a
 CREATE INDEX idx_player_name ON Registered_Players(Player_Name);
 CREATE INDEX idx_tournament_date ON Tournaments(Tournament_Date);
 CREATE INDEX idx_season_year ON Season_Standings(Season_Year);
-CREATE INDEX idx_match_tournament ON Matches(Tournament_ID, Global_Match_Order);
+CREATE INDEX idx_match_tournament ON Matches(Tournament_ID, Match_Order);
 CREATE INDEX idx_team_tournament ON Teams(Tournament_ID);
 ```
 

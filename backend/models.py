@@ -66,17 +66,19 @@ class Team(db.Model):
 class Match(db.Model):
     __tablename__ = 'matches'
     
-    match_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.tournament_id'), nullable=False)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.tournament_id'), primary_key=True)
+    match_id = db.Column(db.Integer, primary_key=True)
     stage_type = db.Column(db.Enum('Group_A', 'Group_B', 'Finals'), nullable=False)
     round_type = db.Column(db.Enum('Winners', 'Losers', 'Championship'), nullable=False)
+    round_number = db.Column(db.Integer, nullable=False)
+    position_in_round = db.Column(db.Integer, nullable=False)
     stage_match_number = db.Column(db.Integer, nullable=False)
-    global_match_order = db.Column(db.Integer, nullable=False)
+    match_order = db.Column(db.Integer, nullable=False)
     team1_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=True)
     team2_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=True)
     team1_score = db.Column(db.Integer)
     team2_score = db.Column(db.Integer)
     station_assignment = db.Column(db.Integer)
-    match_status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Pending'), default='Scheduled')
+    match_status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Pending'), default='Pending')
     winner_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
     loser_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
