@@ -222,6 +222,26 @@ def get_tournament_matches(tournament_id):
         'loser_advances_to_match_id': m.loser_advances_to_match_id
     } for m in matches])
 
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>/teams', methods=['GET'])
+def get_tournament_teams(tournament_id):
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
+    result = []
+    for team in teams:
+        player1 = RegisteredPlayer.query.get(team.player1_id)
+        player2 = RegisteredPlayer.query.get(team.player2_id) if team.player2_id else None
+        
+        result.append({
+            'team_id': team.team_id,
+            'player1_id': team.player1_id,
+            'player1_name': player1.player_name if player1 else None,
+            'player2_id': team.player2_id,
+            'player2_name': player2.player_name if player2 else None,
+            'is_ghost_team': team.is_ghost_team,
+            'seed_number': team.seed_number
+        })
+    
+    return jsonify(result)
+
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/generate-teams', methods=['POST'])
 def generate_teams(tournament_id):
     if tournament_id <= 0:
