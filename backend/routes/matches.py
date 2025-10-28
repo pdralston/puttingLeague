@@ -6,6 +6,109 @@ import math
 
 matches_bp = Blueprint('matches', __name__)
 
+@matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/start', methods=['POST'])
+def start_match(tournament_id, match_id):
+    match = Match.query.filter_by(tournament_id=tournament_id, match_id=match_id).first()
+    if not match:
+        return jsonify({'error': 'Match not found'}), 404
+    
+    if match.match_status != 'Scheduled':
+        return jsonify({'error': 'Match is not scheduled'}), 400
+    
+    # Find first available station (1-6)
+    occupied_stations = db.session.query(Match.station_assignment).filter(
+        Match.tournament_id == tournament_id,
+        Match.match_status == 'In_Progress'
+    ).all()
+    
+    occupied = {station[0] for station in occupied_stations if station[0]}
+    available_station = next((i for i in range(1, 7) if i not in occupied), None)
+    
+    if not available_station:
+        return jsonify({'error': 'No stations available'}), 400
+    
+    match.match_status = 'In_Progress'
+    match.station_assignment = available_station
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            'match_id': match.match_id,
+            'status': match.match_status,
+            'station': match.station_assignment
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/score', methods=['POST'])
+def score_match(tournament_id, match_id):
+    data = request.get_json()
+    if not data or 'team1_score' not in data or 'team2_score' not in data:
+        return jsonify({'error': 'Missing score data'}), 400
+    
+    match = Match.query.filter_by(tournament_id=tournament_id, match_id=match_id).first()
+    if not match:
+        return jsonify({'error': 'Match not found'}), 404
+    
+    if match.match_status != 'In_Progress':
+        return jsonify({'error': 'Match is not in progress'}), 400
+    
+    team1_score = int(data['team1_score'])
+    team2_score = int(data['team2_score'])
+    
+    match.team1_score = team1_score
+    match.team2_score = team2_score
+    match.match_status = 'Completed'
+    match.station_assignment = None  # Free up the station
+    
+    # Determine winner and loser
+    if team1_score > team2_score:
+        winner_team_id = match.team1_id
+        loser_team_id = match.team2_id
+    else:
+        winner_team_id = match.team2_id
+        loser_team_id = match.team1_id
+    
+    # Advance teams to next matches
+    if match.winner_advances_to_match_id and winner_team_id:
+        next_match = Match.query.filter_by(tournament_id=tournament_id, match_id=match.winner_advances_to_match_id).first()
+        if next_match:
+            if not next_match.team1_id:
+                next_match.team1_id = winner_team_id
+            elif not next_match.team2_id:
+                next_match.team2_id = winner_team_id
+            
+            # Update status to Scheduled if both teams are now assigned
+            if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
+                next_match.match_status = 'Scheduled'
+    
+    if match.loser_advances_to_match_id and loser_team_id:
+        next_match = Match.query.filter_by(tournament_id=tournament_id, match_id=match.loser_advances_to_match_id).first()
+        if next_match:
+            if not next_match.team1_id:
+                next_match.team1_id = loser_team_id
+            elif not next_match.team2_id:
+                next_match.team2_id = loser_team_id
+            
+            # Update status to Scheduled if both teams are now assigned
+            if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
+                next_match.match_status = 'Scheduled'
+    
+    try:
+        
+        db.session.commit()
+        return jsonify({
+            'match_id': match.match_id,
+            'status': match.match_status,
+            'team1_score': match.team1_score,
+            'team2_score': match.team2_score,
+            'winner_team_id': winner_team_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @matches_bp.route('/api/tournaments/<int:tournament_id>/generate-matches', methods=['POST'])
 def generate_matches(tournament_id):
     tournament = Tournament.query.get(tournament_id)
@@ -194,7 +297,7 @@ def _set_lb_progression(lb_by_round: dict) -> None:
   
 
 @matches_bp.route('/api/matches/<int:match_id>/score', methods=['PUT'])
-def score_match(match_id):
+def update_match_score(match_id):
     if match_id <= 0:
         return jsonify({'error': 'Invalid match ID'}), 400
     

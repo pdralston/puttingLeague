@@ -1,0 +1,242 @@
+.tournament-bracket {
+  padding: 20px;
+  background-color: #003A1F;
+  color: #EFF9F4;
+  min-height: 100vh;
+}
+
+.tournament-bracket h2 {
+  color: #1AFF95;
+  text-shadow: 2px 2px 4px #00381F;
+  margin-bottom: 20px;
+}
+
+.brackets {
+  display: flex;
+  gap: 40px;
+  overflow-x: auto;
+  padding: 20px 0;
+}
+
+.bracket {
+  min-width: 300px;
+}
+
+.bracket h3 {
+  color: #1AFF95;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.rounds {
+  display: flex;
+  gap: 20px;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.round h4 {
+  color: #EFF9F4;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.match {
+  border: 2px solid #1AFF95;
+  border-radius: 8px;
+  padding: 8px;
+  background: #FFFFFF;
+  min-width: 160px;
+  box-shadow: 0 2px 8px rgba(26, 255, 149, 0.2);
+}
+
+.match-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #00381F;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #A8AEFB;
+}
+
+.match-number {
+  font-weight: bold;
+  color: #00381F;
+}
+
+.station-bubble {
+  background-color: #038549;
+  color: #FFFFFF;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.team {
+  padding: 6px 8px;
+  border-bottom: 1px solid #A8AEFB;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000000;
+}
+
+.team:last-child {
+  border-bottom: none;
+}
+
+.team.winner {
+  background-color: #1AFF95;
+  font-weight: bold;
+}
+
+.team-name {
+  text-align: left;
+}
+
+.team-score {
+  text-align: right;
+  font-weight: bold;
+  color: #00381F;
+}
+
+.match-status {
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  padding: 4px;
+  border-top: 1px solid #A8AEFB;
+  font-weight: bold;
+}
+
+.match-status.pending {
+  background-color: #EFF9F4;
+  color: #000000;
+}
+
+.match-status.scheduled {
+  background-color: #FFFFFF;
+  color: #000000;
+}
+
+.match-status.in-progress {
+  background-color: #038549;
+  color: #FFFFFF;
+}
+
+.match-status.completed {
+  background-color: #00381F;
+  color: #FFFFFF;
+}
+
+.start-button {
+  background-color: #038549;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  width: 100%;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.start-button:hover {
+  background-color: #1AFF95;
+  color: #000000;
+}
+
+.score-button {
+  background-color: #1AFF95;
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  width: 100%;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.score-button:hover {
+  background-color: #038549;
+  color: #FFFFFF;
+}
+
+.score-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.score-popup {
+  background: #FFFFFF;
+  border: 2px solid #1AFF95;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 300px;
+}
+
+.score-popup h4 {
+  margin: 0 0 15px 0;
+  color: #00381F;
+}
+
+.score-input {
+  margin-bottom: 15px;
+}
+
+.score-input label {
+  display: block;
+  margin-bottom: 5px;
+  color: #000000;
+  font-weight: bold;
+}
+
+.score-input input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #A8AEFB;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.score-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.score-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.score-buttons button:first-child {
+  background-color: #A8AEFB;
+  color: #000000;
+}
+
+.score-buttons button:last-child {
+  background-color: #038549;
+  color: #FFFFFF;
+}
