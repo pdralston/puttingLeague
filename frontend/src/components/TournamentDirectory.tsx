@@ -10,9 +10,10 @@ interface Tournament {
 interface TournamentDirectoryProps {
   onTournamentSelect: (tournamentId: number) => void;
   onTournamentManage: (tournamentId: number) => void;
+  onCreateTournament: () => void;
 }
 
-const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentSelect, onTournamentManage }) => {
+const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentSelect, onTournamentManage, onCreateTournament }) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,6 +63,9 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
     <div className="tournament-directory">
       <div className="page-header">
         <h2>Tournaments</h2>
+        <button className="create-tournament-button" onClick={onCreateTournament}>
+          Create Tournament
+        </button>
       </div>
       
       <div className="table-container">

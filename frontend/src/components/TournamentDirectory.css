@@ -5,6 +5,27 @@
   text-align: left;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.create-tournament-button {
+  padding: 10px 20px;
+  background-color: #1AFF95;
+  color: #003A1F;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.create-tournament-button:hover {
+  background-color: #15CC7A;
+}
+
 .tournaments-table {
   width: 100%;
   border-collapse: collapse;

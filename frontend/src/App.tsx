@@ -6,9 +6,11 @@ import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';
 import './components/TournamentView.css';
 import './components/AcePotTracker.css';
+import './components/TournamentCreation.css';
 import TournamentBracket from './components/TournamentBracket';
 import TournamentDirectory from './components/TournamentDirectory';
 import TournamentView from './components/TournamentView';
+import TournamentCreation from './components/TournamentCreation';
 import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
 import AcePotTracker from './components/AcePotTracker';
@@ -16,7 +18,7 @@ import AcePotTracker from './components/AcePotTracker';
 function App() {
   const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot'>('players');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
-  const [tournamentMode, setTournamentMode] = useState<'view' | 'manage'>('view');
+  const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
 
   const handleTournamentSelect = (tournamentId: number) => {
     setSelectedTournament(tournamentId);
@@ -28,8 +30,18 @@ function App() {
     setTournamentMode('manage');
   };
 
+  const handleCreateTournament = () => {
+    setSelectedTournament(null);
+    setTournamentMode('create');
+  };
+
   const handleBackToDirectory = () => {
     setSelectedTournament(null);
+    setTournamentMode('view');
+  };
+
+  const handleTournamentCreated = () => {
+    setTournamentMode('view');
   };
 
   return (
@@ -54,6 +66,7 @@ function App() {
             onClick={() => {
               setActiveTab('tournaments');
               setSelectedTournament(null);
+              setTournamentMode('view');
             }}
           >
             Tournaments
@@ -70,10 +83,17 @@ function App() {
         {activeTab === 'players' && <PlayerManager />}
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
-        {activeTab === 'tournaments' && !selectedTournament && (
+        {activeTab === 'tournaments' && !selectedTournament && tournamentMode !== 'create' && (
           <TournamentDirectory 
             onTournamentSelect={handleTournamentSelect}
             onTournamentManage={handleTournamentManage}
+            onCreateTournament={handleCreateTournament}
+          />
+        )}
+        {activeTab === 'tournaments' && tournamentMode === 'create' && (
+          <TournamentCreation
+            onBack={handleBackToDirectory}
+            onTournamentCreated={handleTournamentCreated}
           />
         )}
         {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'view' && (
