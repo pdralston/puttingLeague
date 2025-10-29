@@ -6,6 +6,54 @@ from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot,
 
 tournaments_bp = Blueprint('tournaments', __name__)
 
+def _register_players_helper(tournament_id, tournament_date, players_data):
+    """Helper function to register players and handle ace pot"""
+    registered_players = []
+    ace_pot_buyins = 0
+    
+    for player_data in players_data:
+        if isinstance(player_data, dict):
+            player_id = player_data.get('player_id')
+            bought_ace_pot = player_data.get('bought_ace_pot', False)
+        else:
+            player_id = player_data
+            bought_ace_pot = False
+            
+        player = RegisteredPlayer.query.get(player_id)
+        if not player:
+            raise ValueError(f'Player ID {player_id} not found')
+        
+        # Check if already registered
+        existing_reg = TournamentRegistration.query.filter_by(
+            tournament_id=tournament_id, 
+            player_id=player_id
+        ).first()
+        
+        if not existing_reg:
+            registration = TournamentRegistration(
+                tournament_id=tournament_id,
+                player_id=player_id,
+                bought_ace_pot=bought_ace_pot
+            )
+            db.session.add(registration)
+            registered_players.append(player)
+            
+            if bought_ace_pot:
+                ace_pot_buyins += 1
+    
+    # Add ace pot entry if there are buy-ins
+    if ace_pot_buyins > 0:
+        ace_pot_amount = ace_pot_buyins * 1.00
+        ace_pot_entry = AcePot(
+            tournament_id=tournament_id,
+            date=tournament_date,
+            description=f'Tournament {tournament_date}: {ace_pot_buyins} buy-ins',
+            amount=ace_pot_amount
+        )
+        db.session.add(ace_pot_entry)
+    
+    return registered_players, ace_pot_buyins
+
 @tournaments_bp.route('/api/tournaments', methods=['GET'])
 def get_tournaments():
     date_param = request.args.get('date')
@@ -87,114 +135,81 @@ def create_tournament():
     if len(players) < 2:
         return jsonify({'error': 'At least 2 players required to create tournament'}), 400
     
-    # Create tournament
-    tournament = Tournament(
-        tournament_date=tournament_date,
-        status='Scheduled',
-        total_teams=0,
-        ace_pot_payout=0.00
-    )
-    
-    db.session.add(tournament)
-    db.session.flush()  # Get tournament ID
-    
-    # Register players
-    registered_players = []
-    ace_pot_buyins = 0
-    
-    for player_data in players:
-        if isinstance(player_data, dict):
-            player_id = player_data.get('player_id')
-            bought_ace_pot = player_data.get('bought_ace_pot', False)
-        else:
-            player_id = player_data
-            bought_ace_pot = False
+    try:
+        # Create tournament
+        tournament = Tournament(
+            tournament_date=tournament_date,
+            status='Scheduled',
+            total_teams=0,
+            ace_pot_payout=0.00
+        )
+        
+        db.session.add(tournament)
+        db.session.flush()  # Get tournament ID
+        
+        # Register players using helper
+        registered_players, ace_pot_buyins = _register_players_helper(
+            tournament.tournament_id, tournament_date, players
+        )
+        
+        # Generate teams
+        player_list = registered_players.copy()
+        teams = []
+        
+        while len(player_list) >= 2:
+            player_one = player_list.pop()
+            n = len(player_list)
+            index = random.randint(0, n-1)
             
-        player = RegisteredPlayer.query.get(player_id)
-        if not player:
-            db.session.rollback()
-            return jsonify({'error': f'Player ID {player_id} not found'}), 400
-        
-        # Check if already registered
-        existing_reg = TournamentRegistration.query.filter_by(
-            tournament_id=tournament.tournament_id, 
-            player_id=player_id
-        ).first()
-        
-        if not existing_reg:
-            registration = TournamentRegistration(
+            if index >= n:
+                player_two = player_list.pop()
+            else:
+                player_two = player_list[index]
+                player_list[index] = player_list[n-1]
+                player_list.pop()
+            
+            team = Team(
                 tournament_id=tournament.tournament_id,
-                player_id=player_id,
-                bought_ace_pot=bought_ace_pot
+                player1_id=player_one.player_id,
+                player2_id=player_two.player_id,
+                is_ghost_team=False,
+                seed_number=len(teams) + 1
             )
-            db.session.add(registration)
-            registered_players.append(player)
-            
-            if bought_ace_pot:
-                ace_pot_buyins += 1
-    
-    # Add ace pot entry if there are buy-ins
-    if ace_pot_buyins > 0:
-        ace_pot_amount = ace_pot_buyins * 1.00
-        ace_pot_entry = AcePot(
-            tournament_id=tournament.tournament_id,
-            date=tournament.tournament_date,
-            description=f'Tournament {tournament.tournament_date}: {ace_pot_buyins} buy-ins',
-            amount=ace_pot_amount
-        )
-        db.session.add(ace_pot_entry)
-    
-    # Generate teams
-    player_list = registered_players.copy()
-    teams = []
-    
-    while len(player_list) >= 2:
-        player_one = player_list.pop()
-        n = len(player_list)
-        index = random.randint(0, n-1)
+            db.session.add(team)
+            teams.append(team)
         
-        if index >= n:
-            player_two = player_list.pop()
-        else:
-            player_two = player_list[index]
-            player_list[index] = player_list[n-1]
-            player_list.pop()
+        # Handle odd player (ghost team)
+        if len(player_list) > 0:
+            team = Team(
+                tournament_id=tournament.tournament_id,
+                player1_id=player_list.pop().player_id,
+                player2_id=None,
+                is_ghost_team=True,
+                seed_number=len(teams) + 1
+            )
+            db.session.add(team)
+            teams.append(team)
         
-        team = Team(
-            tournament_id=tournament.tournament_id,
-            player1_id=player_one.player_id,
-            player2_id=player_two.player_id,
-            is_ghost_team=False,
-            seed_number=len(teams) + 1
-        )
-        db.session.add(team)
-        teams.append(team)
-    
-    # Handle odd player (ghost team)
-    if len(player_list) > 0:
-        team = Team(
-            tournament_id=tournament.tournament_id,
-            player1_id=player_list.pop().player_id,
-            player2_id=None,
-            is_ghost_team=True,
-            seed_number=len(teams) + 1
-        )
-        db.session.add(team)
-        teams.append(team)
-    
-    tournament.total_teams = len(teams)
-    db.session.commit()
-    
-    return jsonify({
-        'tournament_id': tournament.tournament_id,
-        'tournament_date': tournament.tournament_date.isoformat(),
-        'status': tournament.status,
-        'total_teams': tournament.total_teams,
-        'total_players': len(registered_players),
-        'teams_generated': len(teams),
-        'ace_pot_buyins': ace_pot_buyins,
-        'ace_pot_amount': ace_pot_buyins * 1.00
-    }), 201
+        tournament.total_teams = len(teams)
+        db.session.commit()
+        
+        return jsonify({
+            'tournament_id': tournament.tournament_id,
+            'tournament_date': tournament.tournament_date.isoformat(),
+            'status': tournament.status,
+            'total_teams': tournament.total_teams,
+            'total_players': len(registered_players),
+            'teams_generated': len(teams),
+            'ace_pot_buyins': ace_pot_buyins,
+            'ace_pot_amount': ace_pot_buyins * 1.00
+        }), 201
+        
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create tournament'}), 500
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/register-players', methods=['POST'])
 def register_players_for_tournament(tournament_id):
@@ -212,10 +227,9 @@ def register_players_for_tournament(tournament_id):
     
     registrations = data['registrations']
     created_players = []
-    registered_players = []
-    ace_pot_buyins = 0
     errors = []
     
+    # Create new players if needed
     for i, reg in enumerate(registrations):
         if 'player_name' in reg:
             division = reg.get('division', 'Am')
@@ -224,9 +238,7 @@ def register_players_for_tournament(tournament_id):
                 continue
             
             existing = RegisteredPlayer.query.filter_by(player_name=reg['player_name']).first()
-            if existing:
-                player = existing
-            else:
+            if not existing:
                 player = RegisteredPlayer(
                     player_name=reg['player_name'],
                     nickname=reg.get('nickname'),
@@ -237,72 +249,51 @@ def register_players_for_tournament(tournament_id):
                 db.session.add(player)
                 db.session.flush()
                 created_players.append(player)
-        
-        elif 'player_id' in reg:
-            player = RegisteredPlayer.query.get(reg['player_id'])
-            if not player:
-                errors.append(f'Registration {i+1}: Player ID {reg["player_id"]} not found')
-                continue
-        else:
-            errors.append(f'Registration {i+1}: Must provide either player_id or player_name')
-            continue
-        
-        existing_reg = TournamentRegistration.query.filter_by(
-            tournament_id=tournament_id, 
-            player_id=player.player_id
-        ).first()
-        
-        if existing_reg:
-            errors.append(f'Registration {i+1}: Player "{player.player_name}" already registered')
-            continue
-        
-        registration = TournamentRegistration(
-            tournament_id=tournament_id,
-            player_id=player.player_id,
-            bought_ace_pot=reg.get('bought_ace_pot', False)
-        )
-        
-        db.session.add(registration)
-        registered_players.append(player)
-        
-        if reg.get('bought_ace_pot', False):
-            ace_pot_buyins += 1
-    
-    if errors and not registered_players:
-        return jsonify({'errors': errors}), 400
-    
-    if ace_pot_buyins > 0:
-        ace_pot_amount = ace_pot_buyins * 1.00
-        ace_pot_entry = AcePot(
-            tournament_id=tournament_id,
-            date=tournament.tournament_date,
-            description=f'Tournament {tournament.tournament_date}: {ace_pot_buyins} buy-ins',
-            amount=ace_pot_amount
-        )
-        db.session.add(ace_pot_entry)
-    
-    db.session.commit()
-    
-    result = {
-        'tournament_id': tournament_id,
-        'registered_players': len(registered_players),
-        'ace_pot_buyins': ace_pot_buyins,
-        'ace_pot_amount': ace_pot_buyins * 1.00,
-        'players': [{
-            'player_id': p.player_id,
-            'player_name': p.player_name,
-            'nickname': p.nickname,
-            'division': p.division
-        } for p in registered_players]
-    }
-    
-    if created_players:
-        result['new_players_created'] = len(created_players)
+                reg['player_id'] = player.player_id
     
     if errors:
-        result['errors'] = errors
+        return jsonify({'errors': errors}), 400
     
-    return jsonify(result), 201
+    # Convert registrations to players format for helper
+    players_data = []
+    for reg in registrations:
+        if 'player_id' in reg:
+            players_data.append({
+                'player_id': reg['player_id'],
+                'bought_ace_pot': reg.get('bought_ace_pot', False)
+            })
+    
+    try:
+        registered_players, ace_pot_buyins = _register_players_helper(
+            tournament_id, tournament.tournament_date, players_data
+        )
+        
+        db.session.commit()
+        
+        result = {
+            'tournament_id': tournament_id,
+            'registered_players': len(registered_players),
+            'ace_pot_buyins': ace_pot_buyins,
+            'ace_pot_amount': ace_pot_buyins * 1.00,
+            'players': [{
+                'player_id': p.player_id,
+                'player_name': p.player_name,
+                'nickname': p.nickname,
+                'division': p.division
+            } for p in registered_players]
+        }
+        
+        if created_players:
+            result['new_players_created'] = len(created_players)
+        
+        return jsonify(result), 201
+        
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to register players'}), 500
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/matches', methods=['GET'])
 def get_tournament_matches(tournament_id):
