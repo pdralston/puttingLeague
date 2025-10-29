@@ -1,0 +1,209 @@
+.tournament-creation {
+  padding: 20px;
+  background-color: #003A1F;
+  color: white;
+  min-height: 100vh;
+}
+
+.creation-form {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.form-section {
+  margin-bottom: 30px;
+}
+
+.form-section label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-section input {
+  padding: 8px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background-color: #002A17;
+  color: white;
+}
+
+.players-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.available-players, .selected-players {
+  border: 1px solid #1AFF95;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.available-players h3, .selected-players h3 {
+  margin-top: 0;
+  color: #1AFF95;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background-color: #002A17;
+  color: white;
+}
+
+.ace-pot-summary {
+  margin-bottom: 10px;
+  padding: 8px;
+  background-color: #004A2F;
+  border-radius: 4px;
+  color: #1AFF95;
+  font-weight: bold;
+}
+
+.player-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 5px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #002A17;
+}
+
+.player-item.selected {
+  border-color: #1AFF95;
+  background-color: #004A2F;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.player-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.ace-pot-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #1AFF95;
+  font-size: 12px;
+}
+
+.ace-pot-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.player-item button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.available-players .player-item button {
+  background-color: #1AFF95;
+  color: #003A1F;
+}
+
+.selected-players .player-item button {
+  background-color: #ff4444;
+  color: white;
+}
+
+.new-player-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #1AFF95;
+  color: #003A1F;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.new-player-form {
+  border: 1px solid #1AFF95;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  background-color: #002A17;
+}
+
+.new-player-form h3 {
+  margin-top: 0;
+  color: #1AFF95;
+}
+
+.new-player-form form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  align-items: end;
+}
+
+.new-player-form input, .new-player-form select {
+  padding: 8px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background-color: #003A1F;
+  color: white;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.form-buttons button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-buttons button[type="submit"] {
+  background-color: #1AFF95;
+  color: #003A1F;
+}
+
+.form-buttons button[type="button"] {
+  background-color: #666;
+  color: white;
+}
+
+.create-section {
+  text-align: center;
+}
+
+.create-tournament-button {
+  padding: 15px 30px;
+  background-color: #1AFF95;
+  color: #003A1F;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.create-tournament-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+}
