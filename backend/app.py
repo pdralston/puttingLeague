@@ -26,10 +26,12 @@ db.init_app(app)
 from routes.players import players_bp
 from routes.tournaments import tournaments_bp
 from routes.matches import matches_bp
+from routes.ace_pot import ace_pot_bp
 
 app.register_blueprint(players_bp)
 app.register_blueprint(tournaments_bp)
 app.register_blueprint(matches_bp)
+app.register_blueprint(ace_pot_bp)
 
 @app.route('/')
 def health_check():

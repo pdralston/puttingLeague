@@ -58,14 +58,18 @@ def get_tournaments():
             } for t in teams]
         })
     else:
-        tournaments = Tournament.query.order_by(Tournament.tournament_date.desc()).all()
-        return jsonify([{
-            'tournament_id': t.tournament_id,
-            'tournament_date': t.tournament_date.isoformat(),
-            'status': t.status,
-            'total_teams': t.total_teams,
-            'ace_pot_payout': float(t.ace_pot_payout) if t.ace_pot_payout else 0.00
-        } for t in tournaments])
+        try:
+            tournaments = Tournament.query.order_by(Tournament.tournament_id.desc()).all()
+            return jsonify([{
+                'tournament_id': t.tournament_id,
+                'tournament_date': t.tournament_date.isoformat() if t.tournament_date else None,
+                'status': t.status,
+                'total_teams': t.total_teams,
+                'ace_pot_payout': float(t.ace_pot_payout) if t.ace_pot_payout else 0.00
+            } for t in tournaments])
+        except Exception as e:
+            print(f"Error fetching tournaments: {e}")
+            return jsonify({'error': 'Failed to fetch tournaments'}), 500
 
 @tournaments_bp.route('/api/tournaments', methods=['POST'])
 def create_tournament():
