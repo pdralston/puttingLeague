@@ -9,9 +9,10 @@ interface Tournament {
 
 interface TournamentDirectoryProps {
   onTournamentSelect: (tournamentId: number) => void;
+  onTournamentManage: (tournamentId: number) => void;
 }
 
-const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentSelect }) => {
+const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentSelect, onTournamentManage }) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,6 +34,28 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
     }
   };
 
+  const handleDelete = async (tournamentId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this tournament? This will delete all matches, teams, and registrations.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setTournaments(prev => prev.filter(t => t.tournament_id !== tournamentId));
+      } else {
+        alert('Failed to delete tournament');
+      }
+    } catch (error) {
+      console.error('Failed to delete tournament:', error);
+      alert('Failed to delete tournament');
+    }
+  };
+
   if (loading) return <div className="loading">Loading tournaments...</div>;
 
   return (
@@ -48,7 +71,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
               <th>Date</th>
               <th>Status</th>
               <th>Teams</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -58,12 +81,26 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
                 <td>{tournament.status}</td>
                 <td>{tournament.total_teams || 0}</td>
                 <td>
-                  <button 
-                    className="view-button"
-                    onClick={() => onTournamentSelect(tournament.tournament_id)}
-                  >
-                    View
-                  </button>
+                  <div className="action-buttons">
+                    <button 
+                      className="view-button"
+                      onClick={() => onTournamentSelect(tournament.tournament_id)}
+                    >
+                      View
+                    </button>
+                    <button 
+                      className="manage-button"
+                      onClick={() => onTournamentManage(tournament.tournament_id)}
+                    >
+                      Manage
+                    </button>
+                    <button 
+                      className="delete-button"
+                      onClick={(e) => handleDelete(tournament.tournament_id, e)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

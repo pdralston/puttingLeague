@@ -28,6 +28,11 @@
   background: rgba(26, 255, 149, 0.1);
 }
 
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .view-button {
   background: #1AFF95;
   color: #000;
@@ -40,4 +45,32 @@
 
 .view-button:hover {
   background: #00FF7F;
+}
+
+.manage-button {
+  background: #007cba;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.manage-button:hover {
+  background: #005a87;
+}
+
+.delete-button {
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.delete-button:hover {
+  background: #ff5252;
 }

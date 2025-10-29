@@ -5,6 +5,71 @@
   min-height: 100vh;
 }
 
+.tournament-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.tournament-header h2 {
+  color: #1AFF95;
+  text-shadow: 2px 2px 4px #00381F;
+  margin: 0;
+}
+
+.matches-in-progress {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  z-index: 998;
+  background: rgba(26, 255, 149, 0.1);
+  border-bottom: 1px solid #1AFF95;
+  padding: 15px 20px;
+  backdrop-filter: blur(5px);
+}
+
+.matches-in-progress h3 {
+  color: #1AFF95;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.active-matches {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.active-match {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(26, 255, 149, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  min-width: 200px;
+}
+
+.active-match .station {
+  color: #1AFF95;
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.active-match .teams {
+  color: white;
+  font-size: 0.85rem;
+}
+
+.tournament-content {
+  margin-top: 120px;
+}
+
+.loading {
+  text-align: center;
+  color: #1AFF95;
+  padding: 40px;
+}
+
 .tournament-bracket h2 {
   color: #1AFF95;
   text-shadow: 2px 2px 4px #00381F;

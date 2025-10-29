@@ -247,8 +247,25 @@ def get_tournament_teams(tournament_id):
     
     return jsonify(result)
 
-@tournaments_bp.route('/api/tournaments/<int:tournament_id>/generate-teams', methods=['POST'])
-def generate_teams(tournament_id):
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>', methods=['DELETE'])
+def delete_tournament(tournament_id):
+    try:
+        # Delete in dependency order
+        Match.query.filter_by(tournament_id=tournament_id).delete()
+        Team.query.filter_by(tournament_id=tournament_id).delete()
+        TournamentRegistration.query.filter_by(tournament_id=tournament_id).delete()
+        AcePot.query.filter_by(tournament_id=tournament_id).delete()
+        
+        tournament = Tournament.query.get(tournament_id)
+        if tournament:
+            db.session.delete(tournament)
+            db.session.commit()
+            return jsonify({'message': 'Tournament deleted successfully'})
+        else:
+            return jsonify({'error': 'Tournament not found'}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
     if tournament_id <= 0:
         return jsonify({'error': 'Invalid tournament ID'}), 400
     
