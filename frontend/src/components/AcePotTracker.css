@@ -1,0 +1,79 @@
+.ace-pot-tracker {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: left;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #1AFF95;
+}
+
+.page-header h2 {
+  color: #1AFF95;
+  margin: 0;
+  font-size: 2rem;
+}
+
+.current-total {
+  color: white;
+  font-size: 1.2rem;
+}
+
+.current-total .amount {
+  color: #1AFF95;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.ace-pot-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ace-pot-table th {
+  background: #1AFF95;
+  color: #000;
+  padding: 15px;
+  text-align: left;
+  font-weight: bold;
+}
+
+.ace-pot-table th:nth-child(3),
+.ace-pot-table th:nth-child(4) {
+  text-align: right;
+  width: 120px;
+}
+
+.ace-pot-table td {
+  padding: 15px;
+  border-bottom: 1px solid rgba(26, 255, 149, 0.2);
+  color: white;
+}
+
+.ace-pot-table td:nth-child(3),
+.ace-pot-table td:nth-child(4) {
+  text-align: right;
+  font-weight: bold;
+}
+
+.ace-pot-table tr:hover {
+  background: rgba(26, 255, 149, 0.1);
+}
+
+.positive {
+  color: #1AFF95;
+}
+
+.negative {
+  color: #ff6b6b;
+}
+
+.running-total {
+  color: #1AFF95 !important;
+}
