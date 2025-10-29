@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import Bracket from './Bracket';
+import BracketView from './BracketView';
 import { Tournament, Match } from '../types/tournament';
 
-interface TournamentBracketProps {
+interface TournamentViewProps {
   tournamentId: number;
   onBack?: () => void;
 }
 
-const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onBack }) => {
+const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
 
   useEffect(() => {
@@ -35,53 +35,16 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
   };
 
-  const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team1_score: team1Score, team2_score: team2Score })
-      });
-      
-      if (response.ok) {
-        const [matches, teams] = await Promise.all([
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
-        ]);
-        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
-      }
-    } catch (error) {
-      console.error('Failed to score match:', error);
-    }
-  };
-
-  const handleStartMatch = async (matchId: number) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches/${matchId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (response.ok) {
-        const [matches, teams] = await Promise.all([
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
-        ]);
-        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
-      }
-    } catch (error) {
-      console.error('Failed to start match:', error);
-    }
-  };
-
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
 
   const matchesInProgress = getMatchesInProgress();
+  const winnersMatches = tournament.matches.filter(m => m.round_type === 'Winners');
+  const losersMatches = tournament.matches.filter(m => m.round_type === 'Losers');
 
   return (
-    <div className="tournament-bracket">
+    <div className="tournament-view">
       {matchesInProgress.length > 0 && (
         <div className="matches-in-progress">
           <h3>Matches in Progress</h3>
@@ -107,18 +70,25 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
       )}
       
       <div className="tournament-content">
-        <Bracket 
-          matches={tournament.matches}
-          allMatches={tournament.matches}
-          teams={tournament.teams}
-          players={[]}
-          title={`Tournament ${tournamentId}`}
-          onScoreMatch={handleScoreMatch}
-          onStartMatch={handleStartMatch}
-        />
+        <div className="brackets">
+          {winnersMatches.length > 0 && (
+            <BracketView 
+              matches={winnersMatches}
+              teams={tournament.teams}
+              title="Winners Bracket"
+            />
+          )}
+          {losersMatches.length > 0 && (
+            <BracketView 
+              matches={losersMatches}
+              teams={tournament.teams}
+              title="Losers Bracket"
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-export default TournamentBracket;
+export default TournamentView;

@@ -4,9 +4,11 @@ import './components/Bracket.css';
 import './components/PlayerManager.css';
 import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';
+import './components/TournamentView.css';
 import './components/AcePotTracker.css';
 import TournamentBracket from './components/TournamentBracket';
 import TournamentDirectory from './components/TournamentDirectory';
+import TournamentView from './components/TournamentView';
 import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
 import AcePotTracker from './components/AcePotTracker';
@@ -14,9 +16,16 @@ import AcePotTracker from './components/AcePotTracker';
 function App() {
   const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot'>('players');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
+  const [tournamentMode, setTournamentMode] = useState<'view' | 'manage'>('view');
 
   const handleTournamentSelect = (tournamentId: number) => {
     setSelectedTournament(tournamentId);
+    setTournamentMode('view');
+  };
+
+  const handleTournamentManage = (tournamentId: number) => {
+    setSelectedTournament(tournamentId);
+    setTournamentMode('manage');
   };
 
   const handleBackToDirectory = () => {
@@ -62,17 +71,22 @@ function App() {
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
         {activeTab === 'tournaments' && !selectedTournament && (
-          <TournamentDirectory onTournamentSelect={handleTournamentSelect} />
+          <TournamentDirectory 
+            onTournamentSelect={handleTournamentSelect}
+            onTournamentManage={handleTournamentManage}
+          />
         )}
-        {activeTab === 'tournaments' && selectedTournament && (
-          <div>
-            <div className="back-button-container">
-              <button className="back-button" onClick={handleBackToDirectory}>
-                ← Back to Tournaments
-              </button>
-            </div>
-            <TournamentBracket tournamentId={selectedTournament} />
-          </div>
+        {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'view' && (
+          <TournamentView 
+            tournamentId={selectedTournament} 
+            onBack={handleBackToDirectory}
+          />
+        )}
+        {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'manage' && (
+          <TournamentBracket 
+            tournamentId={selectedTournament} 
+            onBack={handleBackToDirectory}
+          />
         )}
       </main>
     </div>

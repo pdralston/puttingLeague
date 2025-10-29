@@ -56,20 +56,23 @@ main {
 }
 
 .back-button-container {
-  padding: 20px;
-  text-align: left;
-  max-width: 1200px;
-  margin: 0 auto;
+  position: fixed;
+  top: 70px;
+  left: 20px;
+  z-index: 999;
+  padding: 0;
+  margin: 0;
 }
 
 .back-button {
   background: #1AFF95;
   color: #000;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+  font-size: 14px;
 }
 
 .back-button:hover {

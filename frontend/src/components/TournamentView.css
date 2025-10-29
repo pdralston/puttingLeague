@@ -1,0 +1,128 @@
+.tournament-view {
+  padding: 20px;
+  background-color: #003A1F;
+  color: #EFF9F4;
+  min-height: 100vh;
+}
+
+.brackets {
+  display: flex;
+  gap: 40px;
+  overflow-x: auto;
+  padding: 20px 0;
+}
+
+.bracket-view {
+  min-width: 300px;
+}
+
+.bracket-view h3 {
+  color: #1AFF95;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.rounds {
+  display: flex;
+  gap: 20px;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.round h4 {
+  color: #EFF9F4;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.match {
+  border: 2px solid #1AFF95;
+  border-radius: 8px;
+  padding: 8px;
+  background: #FFFFFF;
+  min-width: 160px;
+  box-shadow: 0 2px 8px rgba(26, 255, 149, 0.2);
+}
+
+.match-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #00381F;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #A8AEFB;
+}
+
+.match-number {
+  font-weight: bold;
+  color: #00381F;
+}
+
+.team-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team {
+  padding: 6px 8px;
+  border-bottom: 1px solid #A8AEFB;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000000;
+}
+
+.team:last-child {
+  border-bottom: none;
+}
+
+.team.winner {
+  background-color: #1AFF95;
+  font-weight: bold;
+}
+
+.team-name {
+  text-align: left;
+}
+
+.team-score {
+  text-align: right;
+  font-weight: bold;
+  color: #00381F;
+}
+
+.match-status {
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  padding: 4px;
+  border-top: 1px solid #A8AEFB;
+  font-weight: bold;
+}
+
+.match-status.pending {
+  background-color: #EFF9F4;
+  color: #000000;
+}
+
+.match-status.scheduled {
+  background-color: #FFFFFF;
+  color: #000000;
+}
+
+.match-status.in-progress {
+  background-color: #038549;
+  color: #FFFFFF;
+}
+
+.match-status.completed {
+  background-color: #00381F;
+  color: #FFFFFF;
+}
