@@ -9,13 +9,16 @@ interface TournamentBracketProps {
 
 const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onBack }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [tournamentStatus, setTournamentStatus] = useState<string>('');
 
   useEffect(() => {
     Promise.all([
       fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
-    ]).then(([matches, teams]) => {
+      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
+      fetch(`http://localhost:5000/api/tournaments?id=${tournamentId}`).then(res => res.json())
+    ]).then(([matches, teams, tournamentData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      setTournamentStatus(tournamentData.status);
     });
   }, [tournamentId]);
 
@@ -74,6 +77,22 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     }
   };
 
+  const handleStartTournament = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'In_Progress' })
+      });
+
+      if (response.ok) {
+        setTournamentStatus('In_Progress');
+      }
+    } catch (error) {
+      console.error('Failed to start tournament:', error);
+    }
+  };
+
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
@@ -106,7 +125,19 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
         </div>
       )}
       
-      <div className="tournament-content">
+      <div className="tournament-content" style={{ position: 'relative' }}>
+        {tournamentStatus === 'Scheduled' && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Tournament Ready to Start</h2>
+              <p>This tournament is scheduled and ready to begin.</p>
+              <button className="start-tournament-button" onClick={handleStartTournament}>
+                Start Tournament
+              </button>
+            </div>
+          </div>
+        )}
+        
         <Bracket 
           matches={tournament.matches}
           allMatches={tournament.matches}

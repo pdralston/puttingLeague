@@ -333,6 +333,29 @@ def get_tournament_teams(tournament_id):
     
     return jsonify(result)
 
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>/status', methods=['PUT'])
+def update_tournament_status(tournament_id):
+    data = request.get_json()
+    
+    if not data or 'status' not in data:
+        return jsonify({'error': 'Status is required'}), 400
+    
+    new_status = data['status']
+    if new_status not in ['Scheduled', 'In_Progress', 'Completed']:
+        return jsonify({'error': 'Invalid status'}), 400
+    
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    
+    tournament.status = new_status
+    db.session.commit()
+    
+    return jsonify({
+        'tournament_id': tournament_id,
+        'status': tournament.status
+    })
+
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
