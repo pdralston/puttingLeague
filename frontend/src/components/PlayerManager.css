@@ -86,12 +86,15 @@
   border-collapse: collapse;
 }
 
-.players-table th {
+.players-table thead th {
   background: #1AFF95;
   color: #000;
   padding: 15px;
   text-align: left;
   font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .players-table td {
@@ -127,4 +130,19 @@
   text-align: center;
   color: #1AFF95;
   padding: 40px;
+}
+.table-container {
+  max-height: calc(80vh);
+  overflow-y: auto;
+}
+
+.players-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.players-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }

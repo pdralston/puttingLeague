@@ -7,7 +7,7 @@ interface PlayerListProps {
 
 const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
   return (
-    <div className="player-list">
+    <div className="player-list-view">
       <div className="table-container">
         <table className="players-table">
           <thead>
