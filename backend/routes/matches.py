@@ -127,6 +127,9 @@ def generate_matches(tournament_id):
     matches = _generate_winners_bracket(tournament_id, teams, 1)
     _generate_losers_bracket(matches)
     
+    # Only trim first-round matches with no teams
+    matches = _trim_empty_first_round(matches)
+    
     # Bulk insert all matches
     db.session.add_all(matches)
     db.session.commit()
@@ -181,6 +184,7 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
             next_pos = pos // 2
             match['winner_to'] = wb_matches[round_num + 1][next_pos]['id']
     
+    # Convert to database objects and filter out empty matches
     # Convert to database objects
     db_matches = []
     for match in matches:
@@ -198,18 +202,76 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
             match_status='Pending'
         )
         
-        # Seed teams into first round
+        # Seed teams into first round with byes system
         if match['round_num'] == 0:
             pos = match['position']
-            if pos * 2 < team_count:
-                db_match.team1_id = teams[pos * 2].team_id
-                if pos * 2 + 1 < team_count:
-                    db_match.team2_id = teams[pos * 2 + 1].team_id
+            team1_idx = pos * 2
+            team2_idx = pos * 2 + 1
+            
+            if team1_idx < team_count:
+                db_match.team1_id = teams[team1_idx].team_id
+                
+                if team2_idx < team_count:
+                    # Regular match - both teams present
+                    db_match.team2_id = teams[team2_idx].team_id
                     db_match.match_status = 'Scheduled'
+                else:
+                    # Bye - only team1, auto-advance
+                    db_match.match_status = 'Completed'
+                    db_match.team1_score = 1
+                    db_match.team2_score = 0
         
         db_matches.append(db_match)
+
+    # Process byes - advance winners automatically
+    _process_byes(db_matches)
     
     return db_matches
+
+def _trim_empty_first_round(matches: List[Match]) -> List[Match]:
+    """Remove matches that have no teams assigned or no valid incoming paths"""
+    matches_to_remove = []
+    
+    for match in matches:
+        should_remove = False
+        
+        if match.round_number == 0 and match.round_type == 'Winners':
+            # Remove winners bracket first-round matches with no teams
+            if match.team1_id is None and match.team2_id is None:
+                should_remove = True
+                
+        elif match.round_type == 'Losers':
+            # Remove losers bracket matches with no incoming paths from existing matches
+            has_incoming = any(m.loser_advances_to_match_id == match.match_id 
+                             for m in matches if m != match and m not in matches_to_remove)
+            if not has_incoming:
+                should_remove = True
+        
+        if should_remove:
+            matches_to_remove.append(match)
+    
+    return [m for m in matches if m not in matches_to_remove]
+    
+    # Process byes - advance winners automatically
+    _process_byes(db_matches)
+    
+    return db_matches
+
+def _process_byes(matches: List[Match]) -> None:
+    """Process bye matches and advance winners to next round"""
+    bye_matches = [m for m in matches if m.match_status == 'Completed' and m.team2_id is None]
+    
+    for bye_match in bye_matches:
+        if bye_match.winner_advances_to_match_id:
+            next_match = next((m for m in matches if m.match_id == bye_match.winner_advances_to_match_id), None)
+            if next_match:
+                if next_match.team1_id is None:
+                    next_match.team1_id = bye_match.team1_id
+                elif next_match.team2_id is None:
+                    next_match.team2_id = bye_match.team1_id
+                    # If both teams are now assigned, schedule the match
+                    if next_match.team1_id and next_match.team2_id:
+                        next_match.match_status = 'Scheduled'
 
 def _generate_losers_bracket(matches: List[Match]) -> None:
     """Generate losers bracket based on existing winners bracket"""
@@ -272,11 +334,15 @@ def _generate_losers_bracket(matches: List[Match]) -> None:
 def _set_wb_loser_paths(wb_by_round: dict, lb_by_round: dict) -> None:
     """Set advancement paths from winners bracket to losers bracket"""
     # Round 0 losers go to LB round 0
-    for i in range(0, len(wb_by_round[0]), 2):
+    wb_first_round = wb_by_round[0]
+    lb_first_round = lb_by_round[0] if 0 in lb_by_round else []
+    
+    for i in range(0, len(wb_first_round), 2):
         pos = i // 2
-        wb_by_round[0][i].loser_advances_to_match_id = lb_by_round[0][pos].match_id
-        if i + 1 < len(wb_by_round[0]):
-            wb_by_round[0][i + 1].loser_advances_to_match_id = lb_by_round[0][pos].match_id
+        if pos < len(lb_first_round):  # Check bounds
+            wb_first_round[i].loser_advances_to_match_id = lb_first_round[pos].match_id
+            if i + 1 < len(wb_first_round):
+                wb_first_round[i + 1].loser_advances_to_match_id = lb_first_round[pos].match_id
     
     # Subsequent WB losers
     loser_round_adjust = 0

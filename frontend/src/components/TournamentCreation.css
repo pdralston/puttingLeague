@@ -66,8 +66,12 @@
 }
 
 .player-list {
-  max-height: 300px;
+  max-height: calc(50vh);
   overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.player-list-view {
   margin-bottom: 15px;
 }
 

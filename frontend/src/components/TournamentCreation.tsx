@@ -80,7 +80,8 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       });
 
       if (response.ok) {
-        const createdPlayer = await response.json();
+        const result = await response.json();
+        const createdPlayer = result.created[0];
         setAvailablePlayers([...availablePlayers, createdPlayer]);
         addPlayer(createdPlayer);
         setNewPlayer({ player_name: '', nickname: '', division: 'Am' });
