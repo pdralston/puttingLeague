@@ -84,6 +84,19 @@
 .players-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.players-table th:nth-child(1) {
+  width: 80px;
+}
+
+.players-table th:nth-child(2) {
+  width: auto;
+}
+
+.players-table th:nth-child(3) {
+  width: 150px;
 }
 
 .players-table thead th {
@@ -293,4 +306,103 @@
   outline: none;
   border-color: #00FF7F;
   background: #005A3F;
+}
+
+/* Divisional Leader Styles */
+.rank-cell {
+  text-align: center;
+  font-size: 1.2em;
+  width: 60px;
+}
+
+.division-leader-1st {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05)) !important;
+  border-left: 4px solid #FFD700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.division-leader-1st:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 215, 0, 0.1)) !important;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.division-leader-2nd {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(192, 192, 192, 0.05)) !important;
+  border-left: 4px solid #C0C0C0;
+  box-shadow: 0 0 10px rgba(192, 192, 192, 0.3);
+}
+
+.division-leader-2nd:hover {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.25), rgba(192, 192, 192, 0.1)) !important;
+  box-shadow: 0 0 15px rgba(192, 192, 192, 0.4);
+}
+
+.division-leader-3rd {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.15), rgba(205, 127, 50, 0.05)) !important;
+  border-left: 4px solid #CD7F32;
+  box-shadow: 0 0 8px rgba(205, 127, 50, 0.3);
+}
+
+.division-leader-3rd:hover {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.25), rgba(205, 127, 50, 0.1)) !important;
+  box-shadow: 0 0 12px rgba(205, 127, 50, 0.4);
+}
+
+/* Enhanced animations for leaders */
+.division-leader-1st {
+  animation: gold-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes gold-glow {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  }
+}
+
+.division-leader-2nd {
+  animation: silver-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes silver-glow {
+  0% {
+    box-shadow: 0 0 8px rgba(192, 192, 192, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 16px rgba(192, 192, 192, 0.5);
+  }
+}
+
+.division-leader-3rd {
+  animation: bronze-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes bronze-glow {
+  0% {
+    box-shadow: 0 0 6px rgba(205, 127, 50, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 14px rgba(205, 127, 50, 0.5);
+  }
+}
+
+/* Player Detail Flair for Leaders */
+.player-detail.division-leader-1st {
+  border: 3px solid #FFD700;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 74, 47, 1));
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+}
+
+.player-detail.division-leader-2nd {
+  border: 3px solid #C0C0C0;
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.1), rgba(0, 74, 47, 1));
+  box-shadow: 0 0 20px rgba(192, 192, 192, 0.4);
+}
+
+.player-detail.division-leader-3rd {
+  border: 3px solid #CD7F32;
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.1), rgba(0, 74, 47, 1));
+  box-shadow: 0 0 18px rgba(205, 127, 50, 0.4);
 }

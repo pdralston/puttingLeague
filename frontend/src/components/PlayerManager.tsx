@@ -12,6 +12,21 @@ const PlayerManager: React.FC = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const getDivisionalRank = (player: Player): number => {
+    const divisionPlayers = players
+      .filter(p => p.division === player.division)
+      .sort((a, b) => b.seasonal_points - a.seasonal_points);
+    return divisionPlayers.findIndex(p => p.player_id === player.player_id) + 1;
+  };
+
+  const getDivisionalRankSuffix = (player: Player): string => {
+    const rank = getDivisionalRank(player);
+    if (rank === 1) return '1st';
+    if (rank === 2) return '2nd';
+    if (rank === 3) return '3rd';
+    return '';
+  };
+
   useEffect(() => {
     fetchPlayers();
   }, []);
@@ -66,8 +81,13 @@ const PlayerManager: React.FC = () => {
             ← Back to Players
           </button>
         </div>
-        <div className="player-detail">
-          <h2>{selectedPlayer.player_name}</h2>
+        <div className={`player-detail ${getDivisionalRank(selectedPlayer) <= 3 ? `division-leader-${getDivisionalRankSuffix(selectedPlayer)}` : ''}`}>
+          <h2>
+            {getDivisionalRank(selectedPlayer) === 1 && '👑 '}
+            {getDivisionalRank(selectedPlayer) === 2 && '🥈 '}
+            {getDivisionalRank(selectedPlayer) === 3 && '🥉 '}
+            {selectedPlayer.player_name}
+          </h2>
           {selectedPlayer.nickname && <p className="nickname">"{selectedPlayer.nickname}"</p>}
           <div className="player-stats">
             <div className="stat">
