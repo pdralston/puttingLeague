@@ -22,6 +22,8 @@ export interface Match {
   match_status: string;
   winner_advances_to_match_id?: number;
   loser_advances_to_match_id?: number;
+  parent_match_id_one?: number;
+  parent_match_id_two?: number;
   station_assignment?: number;
   team1?: Team;
   team2?: Team;

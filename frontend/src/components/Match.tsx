@@ -27,26 +27,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
   };
 
   const isByeMatch = () => {
-    // Check if match has only one team present (direct bye)
-    const hasDirectBye = (match.match_status === 'Scheduled' || match.match_status === 'Pending') && 
-                         ((match.team1_id && !match.team2_id) || (!match.team1_id && match.team2_id));
-    
-    if (hasDirectBye) return true;
-    
-    // Check if match is pending with no teams but has only one completed feeding match
-    if (match.match_status === 'Pending' && !match.team1_id && !match.team2_id) {
-      const feedingMatches = allMatches.filter(m => 
-        m.winner_advances_to_match_id === match.match_id || 
-        m.loser_advances_to_match_id === match.match_id
-      );
-      
-      const completedFeeding = feedingMatches.filter(m => m.match_status === 'Completed');
-      
-      // This is a bye if there's only one feeding match and it's completed
-      return feedingMatches.length === 1 && completedFeeding.length === 1;
-    }
-    
-    return false;
+    return match.round_number !== 0 && (match.parent_match_id_one == null || match.parent_match_id_two == null) && match.team1_id !== null && match.match_status != "Completed"
   };
 
   const handleAdvanceBye = () => {

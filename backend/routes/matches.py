@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from database import db
 from models import Tournament, Team, Match
+from sqlalchemy import text
 from typing import List
 import math
 from decimal import Decimal
@@ -45,40 +46,71 @@ def start_match(tournament_id, match_id):
 @matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/score', methods=['POST'])
 def score_match(tournament_id, match_id):
     data = request.get_json()
-    if not data or 'team1_score' not in data or 'team2_score' not in data:
-        return jsonify({'error': 'Missing score data'}), 400
     
     match = Match.query.filter_by(tournament_id=tournament_id, match_id=match_id).first()
     if not match:
         return jsonify({'error': 'Match not found'}), 404
     
-    if match.match_status != 'In_Progress':
-        return jsonify({'error': 'Match is not in progress'}), 400
+    print(f"Debug - Match {match_id}: status={match.match_status}, team1_id={match.team1_id}, team2_id={match.team2_id}")
     
-    team1_score = int(data['team1_score'])
-    team2_score = int(data['team2_score'])
-    
-    match.team1_score = team1_score
-    match.team2_score = team2_score
-    match.match_status = 'Completed'
-    match.station_assignment = None  # Free up the station
-    
-    # Determine winner and loser
-    if team1_score > team2_score:
-        winner_team_id = match.team1_id
-        loser_team_id = match.team2_id
+    # Allow advancement for bye matches (Pending/Scheduled/Completed) or regular matches (In_Progress)
+    if match.team2_id is None:
+        # Bye match - allow if Pending, Scheduled, or Completed
+        if match.match_status not in ['Pending', 'Scheduled']:
+            print(f"Debug - Bye match status check failed: {match.match_status}")
+            return jsonify({'error': f'Bye match cannot be advanced (status: {match.match_status})'}), 400
     else:
-        winner_team_id = match.team2_id
-        loser_team_id = match.team1_id
+        # Regular match - must be In_Progress
+        if match.match_status != 'In_Progress':
+            print(f"Debug - Regular match status check failed: {match.match_status}")
+            return jsonify({'error': 'Match is not in progress'}), 400
+    
+    # Handle bye matches (only one team)
+    if match.team2_id is None:
+        print(f"Debug - Processing bye match {match_id}, team1_id: {match.team1_id}")
+        if not match.team1_id:
+            return jsonify({'error': 'No team to advance'}), 400
+        
+        match.team1_score = 1
+        match.team2_score = 0
+        match.match_status = 'Completed'
+        match.station_assignment = None
+        
+        winner_team_id = match.team1_id
+        loser_team_id = None
+        print(f"Debug - Bye match completed, winner: {winner_team_id}")
+    else:
+        # Regular match with two teams
+        if not data or 'team1_score' not in data or 'team2_score' not in data:
+            return jsonify({'error': 'Missing score data'}), 400
+        
+        team1_score = int(data['team1_score'])
+        team2_score = int(data['team2_score'])
+        
+        match.team1_score = team1_score
+        match.team2_score = team2_score
+        match.match_status = 'Completed'
+        match.station_assignment = None
+        
+        # Determine winner and loser
+        if team1_score > team2_score:
+            winner_team_id = match.team1_id
+            loser_team_id = match.team2_id
+        else:
+            winner_team_id = match.team2_id
+            loser_team_id = match.team1_id
     
     # Advance teams to next matches
     if match.winner_advances_to_match_id and winner_team_id:
+        print(f"Debug - Advancing winner {winner_team_id} to match {match.winner_advances_to_match_id}")
         next_match = Match.query.filter_by(tournament_id=tournament_id, match_id=match.winner_advances_to_match_id).first()
         if next_match:
             if not next_match.team1_id:
                 next_match.team1_id = winner_team_id
+                print(f"Debug - Set team1_id to {winner_team_id} in match {next_match.match_id}")
             elif not next_match.team2_id:
                 next_match.team2_id = winner_team_id
+                print(f"Debug - Set team2_id to {winner_team_id} in match {next_match.match_id}")
             
             # Update status to Scheduled if both teams are now assigned
             if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
@@ -100,8 +132,29 @@ def score_match(tournament_id, match_id):
     _auto_advance_byes(tournament_id)
     
     # Handle championship match completion
+    print(f"Debug - Match {match_id} completed: round_type={match.round_type}")
     if match.round_type == 'Championship':
+        print(f"Debug - Processing championship completion")
         _handle_championship_completion(match, winner_team_id, loser_team_id)
+    else:
+        # Check if this completes the tournament (no more matches to play)
+        remaining_matches = Match.query.filter_by(
+            tournament_id=tournament_id, 
+            match_status='Pending'
+        ).filter(Match.team1_id.isnot(None)).count()
+        
+        scheduled_matches = Match.query.filter_by(
+            tournament_id=tournament_id, 
+            match_status='Scheduled'
+        ).count()
+        
+        print(f"Debug - Remaining matches: {remaining_matches}, Scheduled: {scheduled_matches}")
+        
+        if remaining_matches == 0 and scheduled_matches == 0:
+            print(f"Debug - No more matches, completing tournament")
+            tournament = Tournament.query.get(tournament_id)
+            tournament.status = 'Completed'
+            _process_tournament_completion(tournament_id)
     
     try:
         
@@ -135,12 +188,11 @@ def generate_matches(tournament_id):
     matches = _generate_winners_bracket(tournament_id, teams, 1)
     _generate_losers_bracket(matches)
     
-    # Only trim first-round matches with no teams
-    matches = _trim_empty_first_round(matches)
-    
     # Bulk insert all matches
+    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
     db.session.add_all(matches)
     db.session.commit()
+    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     
     return jsonify({
         'tournament_id': tournament_id,
@@ -194,10 +246,10 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
             match['winner_to'] = next_match['id']
             
             # Set parent relationship
-            if next_match.get('parent_winner_match_id') is None:
-                next_match['parent_winner_match_id'] = match['id']
+            if next_match.get('parent_match_id_one') is None:
+                next_match['parent_match_id_one'] = match['id']
             else:
-                next_match['parent_loser_match_id'] = match['id']
+                next_match['parent_match_id_two'] = match['id']
     
     # Convert to database objects and filter out empty matches
     # Convert to database objects
@@ -214,8 +266,8 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
             match_order=match['id'],
             winner_advances_to_match_id=match['winner_to'],
             loser_advances_to_match_id=match['loser_to'],
-            parent_winner_match_id=match.get('parent_winner_match_id'),
-            parent_loser_match_id=match.get('parent_loser_match_id'),
+            parent_match_id_one=match.get('parent_match_id_one'),
+            parent_match_id_two=match.get('parent_match_id_two'),
             match_status='Pending'
         )
         
@@ -367,7 +419,12 @@ def _set_wb_loser_paths(wb_by_round: dict, lb_by_round: dict) -> None:
         for pos, match in enumerate(wb_by_round[wb_round]):
             lb_round = wb_round + loser_round_adjust
             if lb_round < len(lb_by_round) and pos < len(lb_by_round[lb_round]):
-                match.loser_advances_to_match_id = lb_by_round[lb_round][pos].match_id
+                next_match = lb_by_round[lb_round][pos]
+                match.loser_advances_to_match_id = next_match.match_id
+                if next_match.parent_match_id_one is None:
+                    next_match.parent_match_id_one = match.match_id
+                else:
+                    next_match.parent_match_id_two = match.match_id
         loser_round_adjust += 1
 
 def _set_lb_progression(lb_by_round: dict) -> None:
@@ -376,7 +433,12 @@ def _set_lb_progression(lb_by_round: dict) -> None:
         for match in lb_by_round[round_num]:
             next_pos = match.position_in_round // 2
             if next_pos < len(lb_by_round[round_num + 1]):
-                match.winner_advances_to_match_id = lb_by_round[round_num + 1][next_pos].match_id
+                next_match = lb_by_round[round_num + 1][next_pos]
+                match.winner_advances_to_match_id = next_match.match_id
+                if next_match.parent_match_id_one is None:
+                    next_match.parent_match_id_one = match.match_id
+                else:
+                    next_match.parent_match_id_two = match.match_id
   
 
 @matches_bp.route('/api/matches/<int:match_id>/score', methods=['PUT'])
@@ -532,10 +594,10 @@ def _auto_advance_byes(tournament_id):
         parent_winner = None
         parent_loser = None
         
-        if match.parent_winner_match_id:
-            parent_winner = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_winner_match_id).first()
-        if match.parent_loser_match_id:
-            parent_loser = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_loser_match_id).first()
+        if match.parent_match_id_one:
+            parent_winner = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_match_id_one).first()
+        if match.parent_match_id_two:
+            parent_loser = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_match_id_two).first()
             
         # Count completed parents
         completed_parents = 0
@@ -543,14 +605,19 @@ def _auto_advance_byes(tournament_id):
         
         if parent_winner and parent_winner.match_status == 'Completed':
             completed_parents += 1
-            advancing_team_id = parent_winner.team1_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team2_id
+            # For losers bracket matches, we want the loser from winners bracket
+            if match.round_type == 'Losers' and parent_winner.round_type == 'Winners':
+                advancing_team_id = parent_winner.team2_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team1_id
+            else:
+                advancing_team_id = parent_winner.team1_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team2_id
             
         if parent_loser and parent_loser.match_status == 'Completed':
             completed_parents += 1
-            advancing_team_id = parent_loser.team2_id if parent_loser.team1_score > parent_loser.team2_score else parent_loser.team1_id
+            # For losers bracket, this is typically another losers bracket match, so we want the winner
+            advancing_team_id = parent_loser.team1_id if parent_loser.team1_score > parent_loser.team2_score else parent_loser.team2_id
         
         # Auto-advance if only one parent exists and is completed
-        total_parents = (1 if match.parent_winner_match_id else 0) + (1 if match.parent_loser_match_id else 0)
+        total_parents = (1 if match.parent_match_id_one else 0) + (1 if match.parent_match_id_two else 0)
         
         if total_parents == 1 and completed_parents == 1 and advancing_team_id:
             match.team1_id = advancing_team_id

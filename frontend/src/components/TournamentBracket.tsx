@@ -205,6 +205,18 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
           </div>
         )}
         
+        {tournamentStatus === 'Completed' && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Tournament Complete!</h2>
+              <p>This tournament has finished. Check the bracket for final results.</p>
+              <button className="close-overlay-button" onClick={() => setTournamentStatus('')}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+        
         <Bracket 
           matches={tournament.matches}
           allMatches={tournament.matches}
