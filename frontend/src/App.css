@@ -1,7 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+
 .App {
   text-align: center;
   background-color: #003A1F;
   min-height: 100vh;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px;
 }
 
 .App-header {
@@ -121,4 +125,30 @@ main {
 
 .start-tournament-button:hover {
   background: #00FF7F;
+}
+/* Custom scrollbar styling */
+.table-container::-webkit-scrollbar,
+.division-table::-webkit-scrollbar,
+.table-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.division-table::-webkit-scrollbar-track,
+.table-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 58, 31, 0.3);
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.division-table::-webkit-scrollbar-thumb,
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(26, 255, 149, 0.3);
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.division-table::-webkit-scrollbar-thumb:hover,
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(26, 255, 149, 0.5);
 }
