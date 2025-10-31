@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Player } from '../types/player';
 
 interface PlayerListProps {
@@ -7,21 +7,72 @@ interface PlayerListProps {
 }
 
 const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
+  const [divisionFilter, setDivisionFilter] = useState<string>('All');
+
+  // Filter players by division
+  const filteredPlayers = divisionFilter === 'All' 
+    ? players 
+    : players.filter(p => p.division === divisionFilter);
+
+  // Calculate divisional rankings
+  const getDivisionalRank = (player: Player): number => {
+    const divisionPlayers = players
+      .filter(p => p.division === player.division)
+      .sort((a, b) => b.seasonal_points - a.seasonal_points);
+    
+    return divisionPlayers.findIndex(p => p.player_id === player.player_id) + 1;
+  };
+
+  // Get CSS class for divisional leaders
+  const getLeaderClass = (player: Player): string => {
+    const rank = getDivisionalRank(player);
+    if (rank === 1) return 'division-leader-1st';
+    if (rank === 2) return 'division-leader-2nd';
+    if (rank === 3) return 'division-leader-3rd';
+    return '';
+  };
+
+  // Get rank display
+  const getRankDisplay = (player: Player): string => {
+    const rank = getDivisionalRank(player);
+    if (rank === 1) return '👑';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '';
+  };
+
   return (
     <div className="player-list-view">
       <div className="table-container">
         <table className="players-table">
           <thead>
             <tr>
+              <th>Rank</th>
               <th>Name</th>
-              <th>Division</th>
-              <th>Points</th>
-              <th>Cash</th>
+              <th>
+                <select 
+                  value={divisionFilter} 
+                  onChange={(e) => setDivisionFilter(e.target.value)}
+                  style={{ background: 'transparent', border: 'none', color: '#000', fontWeight: 'bold' }}
+                >
+                  <option value="All">All Divisions</option>
+                  <option value="Pro">Pro</option>
+                  <option value="Am">Am</option>
+                  <option value="Junior">Junior</option>
+                </select>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {players.map(player => (
-              <tr key={player.player_id} onClick={() => onPlayerClick(player)} className="clickable-row">
+            {filteredPlayers.map(player => (
+              <tr 
+                key={player.player_id} 
+                onClick={() => onPlayerClick(player)} 
+                className={`clickable-row ${getLeaderClass(player)}`}
+              >
+                <td className="rank-cell">
+                  {getRankDisplay(player)}
+                </td>
                 <td>
                   <div className="player-name">
                     {player.player_name}
@@ -29,14 +80,12 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
                   </div>
                 </td>
                 <td>{player.division}</td>
-                <td>{player.seasonal_points}</td>
-                <td>${player.seasonal_cash}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {players.length === 0 && (
-          <div className="empty-state">No players registered yet.</div>
+        {filteredPlayers.length === 0 && (
+          <div className="empty-state">No players found.</div>
         )}
       </div>
     </div>
