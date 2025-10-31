@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Player } from '../types/player';
 
 interface TournamentCreationProps {
@@ -29,7 +30,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/players');
+      const response = await fetch(`${API_BASE_URL}/api/players`);
       if (response.ok) {
         const data = await response.json();
         setAvailablePlayers(data);
@@ -73,7 +74,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/players', {
+      const response = await fetch(`${API_BASE_URL}/api/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPlayer)
@@ -100,7 +101,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/tournaments', {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -116,7 +117,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         const tournamentData = await response.json();
         
         // Generate matches for the tournament
-        const matchesResponse = await fetch(`http://localhost:5000/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
+        const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });

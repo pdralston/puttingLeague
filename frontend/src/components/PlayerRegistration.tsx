@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Player } from '../types/player';
+import { API_BASE_URL } from '../config/api';
 
 interface PlayerRegistrationProps {
   onPlayerAdded: (player: Player) => void;
@@ -17,7 +18,7 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onPlayerAdded }
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/players', {
+      const response = await fetch(`${API_BASE_URL}/api/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

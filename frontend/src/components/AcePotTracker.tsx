@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 interface AcePotEntry {
   ace_pot_id: number;
@@ -19,7 +20,7 @@ const AcePotTracker: React.FC = () => {
 
   const fetchAcePotEntries = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/ace-pot');
+      const response = await fetch(`${API_BASE_URL}/api/ace-pot`);
       if (response.ok) {
         const data = await response.json();
         setEntries(data);
