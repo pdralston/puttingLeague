@@ -9,13 +9,22 @@ interface TournamentViewProps {
 
 const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [tournamentStatus, setTournamentStatus] = useState<string>('');
+  const [acePotBalance, setAcePotBalance] = useState<number>(0);
 
   useEffect(() => {
     Promise.all([
       fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
-    ]).then(([matches, teams]) => {
+      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
+      fetch(`http://localhost:5000/api/tournaments?id=${tournamentId}`).then(res => res.json()),
+      fetch(`http://localhost:5000/api/ace-pot`).then(res => res.json())
+    ]).then(([matches, teams, tournamentData, acePotData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      setTournamentStatus(tournamentData.status);
+      
+      // Calculate total ace pot balance
+      const totalBalance = acePotData.reduce((sum: number, entry: any) => sum + entry.amount, 0);
+      setAcePotBalance(totalBalance);
     });
   }, [tournamentId]);
 
@@ -35,6 +44,54 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
     return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
   };
 
+  const getTop4Teams = () => {
+    if (!tournament) return [];
+    return tournament.teams
+      .filter(t => t.final_place && t.final_place <= 4)
+      .sort((a, b) => (a.final_place || 999) - (b.final_place || 999));
+  };
+
+  const calculatePayout = (place: number, totalParticipants: number, isUndefeated: boolean = false) => {
+    const totalPot = 5 * totalParticipants;
+    const secondPlace = Math.min(40, totalPot - 40);
+    const firstPlace = totalPot - secondPlace;
+    
+    if (place === 1) {
+      return firstPlace + (isUndefeated ? acePotBalance : 0);
+    }
+    if (place === 2) return secondPlace;
+    return 0;
+  };
+
+  const isTeamUndefeated = (teamId: number): boolean => {
+    if (!tournament) return false;
+    
+    const teamMatches = tournament.matches.filter(m => 
+      (m.team1_id === teamId || m.team2_id === teamId) && m.match_status === 'Completed'
+    );
+    
+    return teamMatches.every(match => {
+      if (match.team1_score === undefined || match.team2_score === undefined) return false;
+      
+      if (match.team1_id === teamId) {
+        return match.team1_score > match.team2_score;
+      } else {
+        return match.team2_score > match.team1_score;
+      }
+    });
+  };
+
+  const getAward = (place: number, payout: number) => {
+    if (place === 1 || place === 2) {
+      return `$${payout}`;
+    } else if (place === 3) {
+      return '2 Crowlers from Hapas Brewing';
+    } else if (place === 4) {
+      return 'Free entry next week';
+    }
+    return '';
+  };
+
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
@@ -42,6 +99,7 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
   const matchesInProgress = getMatchesInProgress();
   const winnersMatches = tournament.matches.filter(m => m.round_type === 'Winners');
   const losersMatches = tournament.matches.filter(m => m.round_type === 'Losers');
+  const championshipMatches = tournament.matches.filter(m => m.round_type === 'Championship');
 
   return (
     <div className="tournament-view">
@@ -69,7 +127,33 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
         </div>
       )}
       
-      <div className="tournament-content">
+      <div className="tournament-content" style={{ position: 'relative' }}>
+        {tournamentStatus === 'Completed' && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Tournament Complete!</h2>
+              <h3>Top 4 Finishers</h3>
+              <div className="top-4-results">
+                {getTop4Teams().map(team => {
+                  const isUndefeated = isTeamUndefeated(team.team_id);
+                  const payout = calculatePayout(team.final_place || 0, tournament.teams.length * 2, isUndefeated);
+                  return (
+                    <div key={team.team_id} className={`place-result ${isUndefeated && team.final_place === 1 ? 'undefeated-winner' : ''}`}>
+                      <div className="place-number">{team.final_place}</div>
+                      <div className="team-name">{getTeamName(team.team_id)}</div>
+                      {isUndefeated && team.final_place === 1 && <div className="ace-stamp">ACE</div>}
+                      <div className="award">{getAward(team.final_place || 0, payout)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button className="close-overlay-button" onClick={() => setTournamentStatus('')}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div className="brackets">
           {winnersMatches.length > 0 && (
             <BracketView 
@@ -83,6 +167,13 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
               matches={losersMatches}
               teams={tournament.teams}
               title="Losers Bracket"
+            />
+          )}
+          {championshipMatches.length > 0 && (
+            <BracketView 
+              matches={championshipMatches}
+              teams={tournament.teams}
+              title="Championship"
             />
           )}
         </div>

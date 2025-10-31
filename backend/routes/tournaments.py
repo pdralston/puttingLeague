@@ -310,7 +310,9 @@ def get_tournament_matches(tournament_id):
         'match_status': m.match_status,
         'station_assignment': m.station_assignment,
         'winner_advances_to_match_id': m.winner_advances_to_match_id,
-        'loser_advances_to_match_id': m.loser_advances_to_match_id
+        'loser_advances_to_match_id': m.loser_advances_to_match_id,
+        'parent_match_id_one': m.parent_match_id_one,
+        'parent_match_id_two': m.parent_match_id_two
     } for m in matches])
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/teams', methods=['GET'])
@@ -328,7 +330,8 @@ def get_tournament_teams(tournament_id):
             'player2_id': team.player2_id,
             'player2_name': player2.player_name if player2 else None,
             'is_ghost_team': team.is_ghost_team,
-            'seed_number': team.seed_number
+            'seed_number': team.seed_number,
+            'final_place': team.final_place
         })
     
     return jsonify(result)
@@ -359,6 +362,12 @@ def update_tournament_status(tournament_id):
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
+        # Clean up teammate history and seasonal points before deleting
+        tournament = Tournament.query.get(tournament_id)
+        if tournament and tournament.status == 'Completed':
+            _cleanup_teammate_history(tournament_id)
+            _adjust_seasonal_points(tournament_id, reverse=True)
+        
         # Delete in dependency order
         Match.query.filter_by(tournament_id=tournament_id).delete()
         Team.query.filter_by(tournament_id=tournament_id).delete()
@@ -375,3 +384,93 @@ def delete_tournament(tournament_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+def _cleanup_teammate_history(tournament_id):
+    """Remove teammate history entries for deleted tournament"""
+    from models import Team, TeamHistory
+    
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
+    
+    for team in teams:
+        if not team.is_ghost_team and team.player2_id:
+            # Decrement history for both players
+            for player_id, teammate_id in [(team.player1_id, team.player2_id), (team.player2_id, team.player1_id)]:
+                history = TeamHistory.query.filter_by(player_id=player_id, teammate_id=teammate_id).first()
+                
+                if history:
+                    history.times_paired -= 1
+                    if history.times_paired <= 0:
+                        db.session.delete(history)
+
+def _adjust_seasonal_points(tournament_id, reverse=False):
+    """Adjust seasonal points for tournament (add or subtract)"""
+    from models import RegisteredPlayer, TournamentRegistration, Team, Match
+    
+    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    
+    for reg in registrations:
+        player = RegisteredPlayer.query.get(reg.player_id)
+        if player:
+            # Calculate same points as when tournament completed
+            participation_points = 1
+            match_wins = _count_match_wins_for_deletion(tournament_id, reg.player_id)
+            top_4_bonus = 2 if _is_top_4_finish_for_deletion(tournament_id, reg.player_id) else 0
+            undefeated_bonus = 3 if _is_undefeated_for_deletion(tournament_id, reg.player_id) else 0
+            
+            total_points = participation_points + match_wins + top_4_bonus + undefeated_bonus
+            
+            if reverse:
+                player.seasonal_points -= total_points
+            else:
+                player.seasonal_points += total_points
+
+def _count_match_wins_for_deletion(tournament_id, player_id):
+    """Count matches won by player's team (for deletion)"""
+    from models import Team, Match
+    
+    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).all()
+    
+    wins = 0
+    for team in teams:
+        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
+        ).filter(Match.match_status == 'Completed').all()
+        
+        for match in matches:
+            if ((match.team1_id == team.team_id and match.team1_score > match.team2_score) or
+                (match.team2_id == team.team_id and match.team2_score > match.team1_score)):
+                wins += 1
+    
+    return wins
+
+def _is_top_4_finish_for_deletion(tournament_id, player_id):
+    """Check if player finished in top 4 (for deletion)"""
+    from models import Team
+    
+    team = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).first()
+    
+    return team and team.final_place and team.final_place <= 4
+
+def _is_undefeated_for_deletion(tournament_id, player_id):
+    """Check if player's team went undefeated (for deletion)"""
+    from models import Team, Match
+    
+    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).all()
+    
+    for team in teams:
+        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
+        ).filter(Match.match_status == 'Completed').all()
+        
+        for match in matches:
+            if ((match.team1_id == team.team_id and match.team1_score < match.team2_score) or
+                (match.team2_id == team.team_id and match.team2_score < match.team1_score)):
+                return False
+    
+    return True

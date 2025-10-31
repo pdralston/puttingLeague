@@ -14,17 +14,34 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
     ? players 
     : players.filter(p => p.division === divisionFilter);
 
+  // Sort players alphabetically by name
+  const sortedPlayers = filteredPlayers.sort((a, b) => 
+    a.player_name.localeCompare(b.player_name)
+  );
+
   // Calculate divisional rankings
   const getDivisionalRank = (player: Player): number => {
     const divisionPlayers = players
       .filter(p => p.division === player.division)
       .sort((a, b) => b.seasonal_points - a.seasonal_points);
     
-    return divisionPlayers.findIndex(p => p.player_id === player.player_id) + 1;
+    // Handle ties - players with same points get same rank
+    let rank = 1;
+    for (let i = 0; i < divisionPlayers.length; i++) {
+      if (i > 0 && divisionPlayers[i].seasonal_points < divisionPlayers[i-1].seasonal_points) {
+        rank = i + 1;
+      }
+      if (divisionPlayers[i].player_id === player.player_id) {
+        return rank;
+      }
+    }
+    
+    return divisionPlayers.length + 1;
   };
 
   // Get CSS class for divisional leaders
   const getLeaderClass = (player: Player): string => {
+    if (player.seasonal_points === 0) return '';
     const rank = getDivisionalRank(player);
     if (rank === 1) return 'division-leader-1st';
     if (rank === 2) return 'division-leader-2nd';
@@ -34,6 +51,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
 
   // Get rank display
   const getRankDisplay = (player: Player): string => {
+    if (player.seasonal_points === 0) return '';
     const rank = getDivisionalRank(player);
     if (rank === 1) return '👑';
     if (rank === 2) return '🥈';
@@ -64,7 +82,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredPlayers.map(player => (
+            {sortedPlayers.map(player => (
               <tr 
                 key={player.player_id} 
                 onClick={() => onPlayerClick(player)} 
@@ -84,7 +102,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
             ))}
           </tbody>
         </table>
-        {filteredPlayers.length === 0 && (
+        {sortedPlayers.length === 0 && (
           <div className="empty-state">No players found.</div>
         )}
       </div>

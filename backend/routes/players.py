@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 from database import db
 from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory
+import csv
+import io
 
 players_bp = Blueprint('players', __name__)
 
@@ -108,6 +110,86 @@ def create_players():
             'division': p.division,
             'seasonal_points': p.seasonal_points,
             'seasonal_cash': float(p.seasonal_cash)
+        } for p in created_players]
+    }
+    
+    if errors:
+        result['errors'] = errors
+    
+    return jsonify(result), 201
+
+@players_bp.route('/api/players/batch-csv', methods=['POST'])
+def create_players_csv():
+    if 'csv_data' not in request.json:
+        return jsonify({'error': 'csv_data field required'}), 400
+    
+    csv_data = request.json['csv_data']
+    reader = csv.DictReader(io.StringIO(csv_data))
+    
+    print(f"Debug - CSV Headers: {reader.fieldnames}")
+    
+    players_data = []
+    for i, row in enumerate(reader):
+        print(f"Debug - Row {i}: {dict(row)}")
+        # Handle case-insensitive column lookup
+        division = row.get('division', row.get('Division', 'Am')).strip()
+        print(f"Debug - Raw division: '{division}'")
+        # Normalize division case
+        if division.lower() == 'pro':
+            division = 'Pro'
+        elif division.lower() == 'junior':
+            division = 'Junior'
+        else:
+            division = 'Am'
+        print(f"Debug - Normalized division: '{division}'")
+            
+        players_data.append({
+            'player_name': row.get('player_name', '').strip(),
+            'nickname': row.get('nickname', '').strip() or None,
+            'division': division
+        })
+    
+    # Reuse existing batch creation logic
+    created_players = []
+    errors = []
+    
+    for i, player_data in enumerate(players_data):
+        if not player_data.get('player_name'):
+            errors.append(f'Row {i+1}: Player name is required')
+            continue
+        
+        division = player_data.get('division', 'Am')
+        if division not in ['Pro', 'Am', 'Junior']:
+            errors.append(f'Row {i+1}: Division must be Pro, Am, or Junior')
+            continue
+        
+        existing = RegisteredPlayer.query.filter_by(player_name=player_data['player_name']).first()
+        if existing:
+            errors.append(f'Row {i+1}: Player name "{player_data["player_name"]}" already exists')
+            continue
+        
+        player = RegisteredPlayer(
+            player_name=player_data['player_name'],
+            nickname=player_data.get('nickname'),
+            division=division,
+            seasonal_points=0,
+            seasonal_cash=0.00
+        )
+        
+        db.session.add(player)
+        created_players.append(player)
+    
+    if errors and not created_players:
+        return jsonify({'errors': errors}), 400
+    
+    db.session.commit()
+    
+    result = {
+        'created': [{
+            'player_id': p.player_id,
+            'player_name': p.player_name,
+            'nickname': p.nickname,
+            'division': p.division
         } for p in created_players]
     }
     

@@ -27,7 +27,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     return tournament.matches.filter(match => match.match_status === 'In_Progress');
   };
 
-  const getTeamName = (teamId?: number): string => {
+  const getTeamName = (teamId?: number | null): string => {
     if (!teamId || !tournament) return 'TBD';
     const team = tournament.teams.find(t => t.team_id === teamId);
     if (!team) return 'TBD';
@@ -93,6 +93,57 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     }
   };
 
+  const isReadyForChampionship = (): boolean => {
+    if (!tournament) return false;
+    const nonChampionshipMatches = tournament.matches.filter(m => m.round_type !== 'Championship');
+    const championshipMatches = tournament.matches.filter(m => m.round_type === 'Championship');
+    
+    // Ready for championship if all non-championship matches are done AND no championship matches exist yet
+    return nonChampionshipMatches.length > 0 && 
+           nonChampionshipMatches.every(m => m.match_status === 'Completed') &&
+           championshipMatches.length === 0;
+  };
+
+  const getSurvivors = (): { wbWinner: number | null, lbWinner: number | null } => {
+    if (!tournament) return { wbWinner: null, lbWinner: null };
+    
+    const wbFinal = tournament.matches
+      .filter(m => m.round_type === 'Winners')
+      .sort((a, b) => b.round_number - a.round_number)[0];
+    
+    const lbFinal = tournament.matches
+      .filter(m => m.round_type === 'Losers')
+      .sort((a, b) => b.round_number - a.round_number)[0];
+    
+    const wbWinner = (wbFinal?.team1_score && wbFinal?.team2_score && wbFinal.team1_score > wbFinal.team2_score) 
+      ? wbFinal.team1_id || null 
+      : wbFinal?.team2_id || null;
+    
+    const lbWinner = (lbFinal?.team1_score && lbFinal?.team2_score && lbFinal.team1_score > lbFinal.team2_score) 
+      ? lbFinal.team1_id || null 
+      : lbFinal?.team2_id || null;
+    
+    return { wbWinner, lbWinner };
+  };
+
+  const handleStartChampionship = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/create-championship`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const [matches, teams] = await Promise.all([
+          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+        ]);
+        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      }
+    } catch (error) {
+      console.error('Failed to create championship:', error);
+    }
+  };
+
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
@@ -133,6 +184,34 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
               <p>This tournament is scheduled and ready to begin.</p>
               <button className="start-tournament-button" onClick={handleStartTournament}>
                 Start Tournament
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {isReadyForChampionship() && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Championship Round</h2>
+              <p>All matches completed! Two teams have survived:</p>
+              <div style={{ margin: '20px 0' }}>
+                <div><strong>Winners Bracket:</strong> {getTeamName(getSurvivors().wbWinner)}</div>
+                <div><strong>Losers Bracket:</strong> {getTeamName(getSurvivors().lbWinner)}</div>
+              </div>
+              <button className="start-tournament-button" onClick={handleStartChampionship}>
+                Begin Championship Round
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {tournamentStatus === 'Completed' && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Tournament Complete!</h2>
+              <p>This tournament has finished. Check the bracket for final results.</p>
+              <button className="close-overlay-button" onClick={() => setTournamentStatus('')}>
+                Close
               </button>
             </div>
           </div>
