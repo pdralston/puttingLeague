@@ -1,8 +1,50 @@
 from flask import Blueprint, jsonify, request
 from database import db
-from models import RegisteredPlayer
+from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory
 
 players_bp = Blueprint('players', __name__)
+
+@players_bp.route('/api/players/<int:player_id>', methods=['GET'])
+def get_player_detail(player_id):
+    player = RegisteredPlayer.query.get(player_id)
+    if not player:
+        return jsonify({'error': 'Player not found'}), 404
+    
+    # Get tournament history
+    tournaments = db.session.query(Tournament, TournamentRegistration, Team).join(
+        TournamentRegistration, Tournament.tournament_id == TournamentRegistration.tournament_id
+    ).outerjoin(
+        Team, db.and_(Team.tournament_id == Tournament.tournament_id, 
+                     db.or_(Team.player1_id == player_id, Team.player2_id == player_id))
+    ).filter(TournamentRegistration.player_id == player_id).all()
+    
+    # Get teammate history with names
+    teammates = db.session.query(TeamHistory, RegisteredPlayer).join(
+        RegisteredPlayer, TeamHistory.teammate_id == RegisteredPlayer.player_id
+    ).filter(TeamHistory.player_id == player_id).all()
+    
+    return jsonify({
+        'player_id': player.player_id,
+        'player_name': player.player_name,
+        'nickname': player.nickname,
+        'division': player.division,
+        'seasonal_points': player.seasonal_points,
+        'seasonal_cash': float(player.seasonal_cash),
+        'tournament_history': [{
+            'tournament_id': t[0].tournament_id,
+            'tournament_date': t[0].tournament_date.isoformat(),
+            'status': t[0].status,
+            'bought_ace_pot': t[1].bought_ace_pot,
+            'final_place': t[2].final_place if t[2] else None
+        } for t in tournaments],
+        'teammate_history': [{
+            'teammate_id': th[0].teammate_id,
+            'teammate_name': th[1].player_name,
+            'teammate_nickname': th[1].nickname,
+            'times_paired': th[0].times_paired,
+            'average_place': float(th[0].average_place) if th[0].average_place else None
+        } for th in teammates]
+    })
 
 @players_bp.route('/api/players', methods=['GET'])
 def get_players():

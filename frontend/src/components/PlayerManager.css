@@ -146,3 +146,151 @@
   top: 0;
   z-index: 10;
 }
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background-color: rgba(26, 255, 149, 0.1);
+}
+.player-detail {
+  background: #004A2F;
+  border-radius: 8px;
+  padding: 30px;
+  margin-top: 20px;
+  color: white;
+}
+
+.player-detail h2 {
+  color: #1AFF95;
+  margin-bottom: 10px;
+}
+
+.player-detail .nickname {
+  color: #ccc;
+  font-style: italic;
+  margin-bottom: 20px;
+}
+
+.player-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #1AFF95;
+}
+
+.stat label {
+  font-weight: bold;
+  color: #1AFF95;
+}
+
+.stat span {
+  font-size: 1.1em;
+}
+.player-detail h3 {
+  color: #1AFF95;
+  margin-top: 30px;
+  margin-bottom: 15px;
+}
+
+.tournament-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tournament-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(26, 255, 149, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #1AFF95;
+}
+
+.tournament-entry span {
+  font-size: 0.9em;
+}
+.player-detail h4 {
+  color: #1AFF95;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.team-info {
+  margin-top: 15px;
+}
+
+.current-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.team-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: rgba(26, 255, 149, 0.15);
+  border-radius: 4px;
+  border-left: 3px solid #1AFF95;
+}
+
+.teammate-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.teammate-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(26, 255, 149, 0.05);
+  border-radius: 4px;
+  border-left: 3px solid #1AFF95;
+}
+
+.teammate-name {
+  font-weight: bold;
+  color: #1AFF95;
+}
+
+.teammate-entry span, .team-entry span {
+  font-size: 0.9em;
+}
+.search-section {
+  margin: 20px 0;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #1AFF95;
+  border-radius: 4px;
+  background: #004A2F;
+  color: white;
+  font-size: 16px;
+}
+
+.search-input::placeholder {
+  color: #ccc;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #00FF7F;
+  background: #005A3F;
+}

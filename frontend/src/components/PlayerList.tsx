@@ -3,9 +3,10 @@ import { Player } from '../types/player';
 
 interface PlayerListProps {
   players: Player[];
+  onPlayerClick: (player: Player) => void;
 }
 
-const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
   return (
     <div className="player-list-view">
       <div className="table-container">
@@ -20,7 +21,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
           </thead>
           <tbody>
             {players.map(player => (
-              <tr key={player.player_id}>
+              <tr key={player.player_id} onClick={() => onPlayerClick(player)} className="clickable-row">
                 <td>
                   <div className="player-name">
                     {player.player_name}
