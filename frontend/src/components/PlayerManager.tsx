@@ -11,6 +11,10 @@ const PlayerManager: React.FC = () => {
   const [playerDetail, setPlayerDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showBulkRegister, setShowBulkRegister] = useState(false);
+  const [csvData, setCsvData] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const getDivisionalRank = (player: Player): number => {
     const divisionPlayers = players
@@ -83,6 +87,46 @@ const PlayerManager: React.FC = () => {
     setShowAddForm(false);
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setCsvData(e.target?.result as string);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBulkRegister = async () => {
+    if (!csvData.trim()) return;
+    
+    setBulkLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/players/batch-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv_data: csvData })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setPlayers(prev => [...prev, ...result.created]);
+        setShowBulkRegister(false);
+        setCsvData('');
+        setSelectedFile(null);
+        if (result.errors?.length > 0) {
+          alert(`Registered ${result.created.length} players. Errors: ${result.errors.join(', ')}`);
+        }
+      }
+    } catch (error) {
+      console.error('Bulk registration failed:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading players...</div>;
 
   if (selectedPlayer) {
@@ -93,11 +137,11 @@ const PlayerManager: React.FC = () => {
             ← Back to Players
           </button>
         </div>
-        <div className={`player-detail ${getDivisionalRank(selectedPlayer) <= 3 ? `division-leader-${getDivisionalRankSuffix(selectedPlayer)}` : ''}`}>
+        <div className={`player-detail ${selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) <= 3 ? `division-leader-${getDivisionalRankSuffix(selectedPlayer)}` : ''}`}>
           <h2>
-            {getDivisionalRank(selectedPlayer) === 1 && '👑 '}
-            {getDivisionalRank(selectedPlayer) === 2 && '🥈 '}
-            {getDivisionalRank(selectedPlayer) === 3 && '🥉 '}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 1 && '👑 '}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 2 && '🥈 '}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 3 && '🥉 '}
             {selectedPlayer.player_name}
           </h2>
           {selectedPlayer.nickname && <p className="nickname">"{selectedPlayer.nickname}"</p>}
@@ -164,16 +208,55 @@ const PlayerManager: React.FC = () => {
     <div className="player-manager">
       <div className="page-header">
         <h2>Players</h2>
-        <button 
-          className="add-button"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          {showAddForm ? 'Cancel' : 'Add Player'}
-        </button>
+        <div className="header-buttons">
+          <button 
+            className="add-button"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : 'Add Player'}
+          </button>
+          <button 
+            className="add-button"
+            onClick={() => setShowBulkRegister(!showBulkRegister)}
+          >
+            Add Players
+          </button>
+        </div>
       </div>
       
       {showAddForm && (
         <PlayerRegistration onPlayerAdded={handlePlayerAdded} />
+      )}
+      
+      {showBulkRegister && (
+        <div className="bulk-register-modal">
+          <h3>Bulk Register Players</h3>
+          <p>Select a CSV file with headers: player_name,nickname,division</p>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleFileSelect}
+            style={{ marginBottom: '10px' }}
+          />
+          {selectedFile && (
+            <p>Selected: {selectedFile.name}</p>
+          )}
+          {csvData && (
+            <div>
+              <h4>Preview:</h4>
+              <pre style={{ background: '#f8f9fa', padding: '10px', fontSize: '12px', maxHeight: '200px', overflow: 'auto' }}>
+                {csvData.split('\n').slice(0, 5).join('\n')}
+                {csvData.split('\n').length > 5 && '\n...'}
+              </pre>
+            </div>
+          )}
+          <div>
+            <button onClick={handleBulkRegister} disabled={bulkLoading || !csvData}>
+              {bulkLoading ? 'Registering...' : 'Register Players'}
+            </button>
+            <button onClick={() => {setShowBulkRegister(false); setCsvData(''); setSelectedFile(null);}}>Cancel</button>
+          </div>
+        </div>
       )}
       
       <div className="search-section">
