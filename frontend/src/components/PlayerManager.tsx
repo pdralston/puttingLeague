@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PlayerRegistration from './PlayerRegistration';
 import PlayerList from './PlayerList';
 import { Player } from '../types/player';
+import { API_BASE_URL } from '../config/api';
 
 const PlayerManager: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -49,7 +50,7 @@ const PlayerManager: React.FC = () => {
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/players');
+      const response = await fetch(`${API_BASE_URL}/api/players`);
       if (response.ok) {
         const data = await response.json();
         setPlayers(data);
@@ -70,7 +71,7 @@ const PlayerManager: React.FC = () => {
     setSelectedPlayer(player);
     setLoadingDetail(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/players/${player.player_id}`);
+      const response = await fetch(`${API_BASE_URL}/api/players/${player.player_id}`);
       if (response.ok) {
         const data = await response.json();
         setPlayerDetail(data);
@@ -104,7 +105,7 @@ const PlayerManager: React.FC = () => {
     
     setBulkLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/players/batch-csv', {
+      const response = await fetch(`${API_BASE_URL}/api/players/batch-csv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csv_data: csvData })

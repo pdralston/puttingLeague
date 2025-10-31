@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { Player } from '../types/player';
 
 const Leaderboard: React.FC = () => {
@@ -16,7 +17,7 @@ const Leaderboard: React.FC = () => {
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/players');
+      const response = await fetch(`${API_BASE_URL}/api/players`);
       if (response.ok) {
         const data = await response.json();
         setPlayers(data);

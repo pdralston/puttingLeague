@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 interface Tournament {
   tournament_id: number;
@@ -23,7 +24,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
 
   const fetchTournaments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tournaments');
+      const response = await fetch(`${API_BASE_URL}/api/tournaments`);
       if (response.ok) {
         const data = await response.json();
         setTournaments(data);
@@ -42,7 +43,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}`, {
         method: 'DELETE'
       });
 

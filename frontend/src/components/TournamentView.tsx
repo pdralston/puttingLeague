@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import BracketView from './BracketView';
 import { Tournament, Match } from '../types/tournament';
 
@@ -14,10 +15,10 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
 
   useEffect(() => {
     Promise.all([
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments?id=${tournamentId}`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/ace-pot`).then(res => res.json())
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/ace-pot`).then(res => res.json())
     ]).then(([matches, teams, tournamentData, acePotData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentStatus(tournamentData.status);

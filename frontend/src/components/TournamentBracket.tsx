@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/api';
 import Bracket from './Bracket';
 import { Tournament, Match } from '../types/tournament';
 
@@ -13,9 +14,9 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
 
   useEffect(() => {
     Promise.all([
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
-      fetch(`http://localhost:5000/api/tournaments?id=${tournamentId}`).then(res => res.json())
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`).then(res => res.json())
     ]).then(([matches, teams, tournamentData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentStatus(tournamentData.status);
@@ -40,7 +41,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
 
   const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ team1_score: team1Score, team2_score: team2Score })
@@ -48,8 +49,8 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
       
       if (response.ok) {
         const [matches, teams] = await Promise.all([
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       }
@@ -60,15 +61,15 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
 
   const handleStartMatch = async (matchId: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches/${matchId}/start`, {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
       
       if (response.ok) {
         const [matches, teams] = await Promise.all([
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       }
@@ -79,7 +80,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
 
   const handleStartTournament = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'In_Progress' })
@@ -128,14 +129,14 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
 
   const handleStartChampionship = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/create-championship`, {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/create-championship`, {
         method: 'POST'
       });
       
       if (response.ok) {
         const [matches, teams] = await Promise.all([
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       }
