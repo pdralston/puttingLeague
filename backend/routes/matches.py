@@ -291,11 +291,9 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
                     db_match.team2_score = 0
         
         db_matches.append(db_match)
-
-    # Process byes - advance winners automatically
-    _process_byes(db_matches)
     
-    return db_matches
+    _process_byes(db_matches)
+    return _trim_empty_first_round(db_matches)
 
 def _trim_empty_first_round(matches: List[Match]) -> List[Match]:
     """Remove matches that have no teams assigned or no valid incoming paths"""
@@ -306,25 +304,21 @@ def _trim_empty_first_round(matches: List[Match]) -> List[Match]:
         
         if match.round_number == 0 and match.round_type == 'Winners':
             # Remove winners bracket first-round matches with no teams
-            if match.team1_id is None and match.team2_id is None:
+            if match.team1_id is None or match.team2_id is None:
                 should_remove = True
                 
-        elif match.round_type == 'Losers':
-            # Remove losers bracket matches with no incoming paths from existing matches
-            has_incoming = any(m.loser_advances_to_match_id == match.match_id 
-                             for m in matches if m != match and m not in matches_to_remove)
-            if not has_incoming:
-                should_remove = True
-        
         if should_remove:
             matches_to_remove.append(match)
+    for match in matches_to_remove:
+        nextWinnerMatch = match.winner_advances_to_match_id
+        for bracket_match in [bm for bm in matches if bm.parent_match_id_one == match.match_id or bm.parent_match_id_two == match.match_id]:
+            if bracket_match.parent_match_id_one == match.match_id:
+                bracket_match.parent_match_id_one = None
+            else:
+                bracket_match.parent_match_id_two = None
+            
     
     return [m for m in matches if m not in matches_to_remove]
-    
-    # Process byes - advance winners automatically
-    _process_byes(db_matches)
-    
-    return db_matches
 
 def _process_byes(matches: List[Match]) -> None:
     """Process bye matches and advance winners to next round"""

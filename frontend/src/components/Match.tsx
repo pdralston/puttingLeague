@@ -27,7 +27,10 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
   };
 
   const isByeMatch = () => {
-    return match.round_number !== 0 && (match.parent_match_id_one == null || match.parent_match_id_two == null) && match.team1_id !== null && match.match_status != "Completed"
+    return match.round_number !== 0
+    && match.round_type != "Championship" 
+    && (match.parent_match_id_one == null || match.parent_match_id_two == null) 
+    && match.team1_id !== null && match.match_status != "Completed"
   };
 
   const handleAdvanceBye = () => {
