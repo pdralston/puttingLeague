@@ -126,3 +126,81 @@
   background-color: #00381F;
   color: #FFFFFF;
 }
+.top-4-results {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.tournament-overlay .overlay-content {
+  max-width: 600px;
+}
+
+.place-result {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(26, 255, 149, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #1AFF95;
+}
+
+.ace-stamp {
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 1.8em;
+  font-weight: 900;
+  color: #FFD700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 3px;
+  transform: rotate(-15deg);
+}
+
+.place-number {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #1AFF95;
+  min-width: 30px;
+}
+
+.team-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.award {
+  color: #1AFF95;
+  font-weight: bold;
+}
+
+.close-overlay-button {
+  background: #1AFF95;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.close-overlay-button:hover {
+  background: #00FF7F;
+}
+
+.undefeated-winner {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(26, 255, 149, 0.1)) !important;
+  border-left: 4px solid #FFD700 !important;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  animation: victory-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes victory-glow {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+  }
+}

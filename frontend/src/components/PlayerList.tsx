@@ -20,7 +20,18 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
       .filter(p => p.division === player.division)
       .sort((a, b) => b.seasonal_points - a.seasonal_points);
     
-    return divisionPlayers.findIndex(p => p.player_id === player.player_id) + 1;
+    // Handle ties - players with same points get same rank
+    let rank = 1;
+    for (let i = 0; i < divisionPlayers.length; i++) {
+      if (i > 0 && divisionPlayers[i].seasonal_points < divisionPlayers[i-1].seasonal_points) {
+        rank = i + 1;
+      }
+      if (divisionPlayers[i].player_id === player.player_id) {
+        return rank;
+      }
+    }
+    
+    return divisionPlayers.length + 1;
   };
 
   // Get CSS class for divisional leaders

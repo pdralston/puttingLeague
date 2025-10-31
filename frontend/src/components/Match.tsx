@@ -25,6 +25,65 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
       setTeam2Score('');
     }
   };
+
+  const isByeMatch = () => {
+    // Check if match has only one team present (direct bye)
+    const hasDirectBye = (match.match_status === 'Scheduled' || match.match_status === 'Pending') && 
+                         ((match.team1_id && !match.team2_id) || (!match.team1_id && match.team2_id));
+    
+    if (hasDirectBye) return true;
+    
+    // Check if match is pending with no teams but has only one completed feeding match
+    if (match.match_status === 'Pending' && !match.team1_id && !match.team2_id) {
+      const feedingMatches = allMatches.filter(m => 
+        m.winner_advances_to_match_id === match.match_id || 
+        m.loser_advances_to_match_id === match.match_id
+      );
+      
+      const completedFeeding = feedingMatches.filter(m => m.match_status === 'Completed');
+      
+      // This is a bye if there's only one feeding match and it's completed
+      return feedingMatches.length === 1 && completedFeeding.length === 1;
+    }
+    
+    return false;
+  };
+
+  const handleAdvanceBye = () => {
+    if (!onScoreMatch || !isByeMatch()) return;
+    
+    // Case 1: Team already seeded, just advance them
+    if (match.team1_id && !match.team2_id) {
+      onScoreMatch(match.match_id, 1, 0);
+    } else if (!match.team1_id && match.team2_id) {
+      onScoreMatch(match.match_id, 0, 1);
+    } 
+    // Case 2: No teams seeded, find the winner from completed feeding match
+    else if (!match.team1_id && !match.team2_id) {
+      const feedingMatches = allMatches.filter(m => 
+        m.winner_advances_to_match_id === match.match_id || 
+        m.loser_advances_to_match_id === match.match_id
+      );
+      
+      const completedFeeding = feedingMatches.find(m => m.match_status === 'Completed');
+      if (completedFeeding && completedFeeding.team1_score !== undefined && completedFeeding.team2_score !== undefined) {
+        // Determine which team advances and score accordingly
+        let advancingTeam;
+        if (completedFeeding.winner_advances_to_match_id === match.match_id) {
+          advancingTeam = completedFeeding.team1_score > completedFeeding.team2_score 
+            ? completedFeeding.team1_id 
+            : completedFeeding.team2_id;
+        } else {
+          advancingTeam = completedFeeding.team1_score < completedFeeding.team2_score 
+            ? completedFeeding.team1_id 
+            : completedFeeding.team2_id;
+        }
+        
+        // Score the match with the advancing team as winner
+        onScoreMatch(match.match_id, 1, 0);
+      }
+    }
+  };
   const getWinner = () => {
     if (match.match_status !== 'Completed') {
       return null;
@@ -111,12 +170,20 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
           {match.match_status}
         </div>
       )}
-      {match.match_status === 'Scheduled' && onStartMatch && (
+      {match.match_status === 'Scheduled' && onStartMatch && !isByeMatch() && (
         <button 
           className="start-button" 
           onClick={() => onStartMatch(match.match_id)}
         >
           ▶ Start
+        </button>
+      )}
+      {isByeMatch() && onScoreMatch && (
+        <button 
+          className="advance-button" 
+          onClick={handleAdvanceBye}
+        >
+          ⏭ Advance
         </button>
       )}
       {match.match_status === 'In_Progress' && onScoreMatch && (

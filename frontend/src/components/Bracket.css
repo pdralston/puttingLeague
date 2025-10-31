@@ -219,6 +219,24 @@
   color: #000000;
 }
 
+.advance-button {
+  background-color: #FFD700;
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  width: 100%;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.advance-button:hover {
+  background-color: #FFA500;
+  color: #000000;
+}
+
 .score-button {
   background-color: #1AFF95;
   color: #000000;

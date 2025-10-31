@@ -6,13 +6,15 @@ export interface Team {
   seed_number: number;
   player1_name?: string;
   player2_name?: string;
+  final_place?: number;
 }
 
 export interface Match {
   match_id: number;
   match_order: number;
-  round_type: 'Winners' | 'Losers';
+  round_type: 'Winners' | 'Losers' | 'Championship';
   round_number: number;
+  stage_type?: string;
   team1_id?: number;
   team2_id?: number;
   team1_score?: number;

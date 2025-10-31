@@ -3,6 +3,7 @@ from database import db
 from models import Tournament, Team, Match
 from typing import List
 import math
+from decimal import Decimal
 
 matches_bp = Blueprint('matches', __name__)
 
@@ -95,6 +96,13 @@ def score_match(tournament_id, match_id):
             if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
                 next_match.match_status = 'Scheduled'
     
+    # Auto-advance matches with only one parent that's completed
+    _auto_advance_byes(tournament_id)
+    
+    # Handle championship match completion
+    if match.round_type == 'Championship':
+        _handle_championship_completion(match, winner_team_id, loser_team_id)
+    
     try:
         
         db.session.commit()
@@ -182,7 +190,14 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
         
         if round_num < wb_rounds - 1:
             next_pos = pos // 2
-            match['winner_to'] = wb_matches[round_num + 1][next_pos]['id']
+            next_match = wb_matches[round_num + 1][next_pos]
+            match['winner_to'] = next_match['id']
+            
+            # Set parent relationship
+            if next_match.get('parent_winner_match_id') is None:
+                next_match['parent_winner_match_id'] = match['id']
+            else:
+                next_match['parent_loser_match_id'] = match['id']
     
     # Convert to database objects and filter out empty matches
     # Convert to database objects
@@ -199,6 +214,8 @@ def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order
             match_order=match['id'],
             winner_advances_to_match_id=match['winner_to'],
             loser_advances_to_match_id=match['loser_to'],
+            parent_winner_match_id=match.get('parent_winner_match_id'),
+            parent_loser_match_id=match.get('parent_loser_match_id'),
             match_status='Pending'
         )
         
@@ -439,6 +456,10 @@ def update_match_score(match_id):
                 'advanced_to_match_id': match.loser_advances_to_match_id
             })
     
+    # Handle championship match completion
+    if match.round_type == 'Championship':
+        _handle_championship_completion(match, winner_team_id, loser_team_id)
+    
     db.session.commit()
     
     return jsonify({
@@ -484,7 +505,7 @@ def _rollback_match_advancements(match, old_winner_id, old_loser_id):
 
 def _advance_team_to_match(team_id, target_match_id):
     """Advance a team to the next match"""
-    target_match = Match.query.get(target_match_id)
+    target_match = Match.query.filter_by(match_id=target_match_id).first()
     if not target_match:
         return False
     
@@ -498,3 +519,364 @@ def _advance_team_to_match(team_id, target_match_id):
     
     # Both slots filled - match is ready
     return False
+
+def _auto_advance_byes(tournament_id):
+    """Auto-advance teams in matches that have only one parent completed or one team seeded"""
+    matches = Match.query.filter_by(tournament_id=tournament_id).all()
+    
+    for match in matches:
+        if match.match_status not in ['Pending', 'Scheduled']:
+            continue
+        
+        # Case 1: Check parent-based advancement for true byes
+        parent_winner = None
+        parent_loser = None
+        
+        if match.parent_winner_match_id:
+            parent_winner = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_winner_match_id).first()
+        if match.parent_loser_match_id:
+            parent_loser = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_loser_match_id).first()
+            
+        # Count completed parents
+        completed_parents = 0
+        advancing_team_id = None
+        
+        if parent_winner and parent_winner.match_status == 'Completed':
+            completed_parents += 1
+            advancing_team_id = parent_winner.team1_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team2_id
+            
+        if parent_loser and parent_loser.match_status == 'Completed':
+            completed_parents += 1
+            advancing_team_id = parent_loser.team2_id if parent_loser.team1_score > parent_loser.team2_score else parent_loser.team1_id
+        
+        # Auto-advance if only one parent exists and is completed
+        total_parents = (1 if match.parent_winner_match_id else 0) + (1 if match.parent_loser_match_id else 0)
+        
+        if total_parents == 1 and completed_parents == 1 and advancing_team_id:
+            match.team1_id = advancing_team_id
+            match.team1_score = 1
+            match.team2_score = 0
+            match.match_status = 'Completed'
+            
+            # Advance to next match
+            if match.winner_advances_to_match_id:
+                _advance_team_to_match(advancing_team_id, match.winner_advances_to_match_id)
+
+def _handle_championship_completion(match, winner_team_id, loser_team_id):
+    """Handle championship match completion - either end tournament or create final match"""
+    from models import Tournament, Team, TeamHistory
+    
+    # Check if this was WB winner vs LB winner (first championship match)
+    if match.round_number == 0:
+        # If WB winner won (team1), tournament is complete
+        if winner_team_id == match.team1_id:
+            tournament = Tournament.query.get(match.tournament_id)
+            tournament.status = 'Completed'
+            _process_tournament_completion(match.tournament_id)
+        else:
+            # LB winner won, create final championship match
+            next_match_id = match.match_id + 1
+            
+            final_match = Match(
+                tournament_id=match.tournament_id,
+                match_id=next_match_id,
+                stage_type='Finals',
+                round_type='Championship',
+                round_number=1,
+                position_in_round=0,
+                stage_match_number=next_match_id,
+                match_order=next_match_id,
+                team1_id=match.team1_id,  # WB winner gets another chance
+                team2_id=match.team2_id,  # LB winner 
+                match_status='Scheduled'
+            )
+            db.session.add(final_match)
+    else:
+        # This was the final championship match, tournament is complete
+        tournament = Tournament.query.get(match.tournament_id)
+        tournament.status = 'Completed'
+        _process_tournament_completion(match.tournament_id)
+
+def _process_tournament_completion(tournament_id):
+    """Process all completion tasks for a tournament"""
+    _calculate_final_places(tournament_id)
+    _update_teammate_history(tournament_id)
+    _update_seasonal_points(tournament_id)
+    _distribute_cash_payouts(tournament_id)
+
+def _calculate_final_places(tournament_id):
+    """Calculate and set final places for all teams"""
+    from models import Team
+    
+    # Find championship matches to determine 1st and 2nd
+    championship_matches = Match.query.filter_by(
+        tournament_id=tournament_id, 
+        round_type='Championship',
+        match_status='Completed'
+    ).order_by(Match.round_number.desc()).all()
+    
+    if championship_matches:
+        final_match = championship_matches[0]
+        
+        # Determine winner and runner-up from final championship match
+        if final_match.team1_score > final_match.team2_score:
+            winner_team_id = final_match.team1_id
+            runner_up_team_id = final_match.team2_id
+        else:
+            winner_team_id = final_match.team2_id
+            runner_up_team_id = final_match.team1_id
+            
+        # Set final places
+        winner_team = Team.query.filter_by(tournament_id=tournament_id, team_id=winner_team_id).first()
+        runner_up_team = Team.query.filter_by(tournament_id=tournament_id, team_id=runner_up_team_id).first()
+        
+        if winner_team:
+            winner_team.final_place = 1
+        if runner_up_team:
+            runner_up_team.final_place = 2
+    
+    # Calculate places for eliminated teams based on elimination order
+    _calculate_elimination_places(tournament_id)
+
+def _calculate_elimination_places(tournament_id):
+    """Calculate final places for teams based on when they were eliminated"""
+    from models import Team
+    
+    # Get all matches in reverse order (latest eliminations first)
+    matches = Match.query.filter_by(tournament_id=tournament_id, match_status='Completed').order_by(Match.match_order.desc()).all()
+    
+    current_place = 3  # Start with 3rd place (1st and 2nd set by championship)
+    
+    for match in matches:
+        # Skip championship matches (already handled)
+        if match.round_type == 'Championship':
+            continue
+            
+        # Find the losing team
+        if match.team1_score < match.team2_score:
+            losing_team_id = match.team1_id
+        else:
+            losing_team_id = match.team2_id
+            
+        # Set final place if not already set
+        losing_team = Team.query.filter_by(tournament_id=tournament_id, team_id=losing_team_id).first()
+        if losing_team and not losing_team.final_place:
+            losing_team.final_place = current_place
+            current_place += 1
+
+def _update_teammate_history(tournament_id):
+    """Update teammate history for all teams in completed tournament"""
+    from models import Team, TeamHistory
+    
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
+    
+    for team in teams:
+        if not team.is_ghost_team and team.player2_id:
+            # Update history for both players
+            for player_id, teammate_id in [(team.player1_id, team.player2_id), (team.player2_id, team.player1_id)]:
+                history = TeamHistory.query.filter_by(player_id=player_id, teammate_id=teammate_id).first()
+                
+                if history:
+                    history.times_paired += 1
+                else:
+                    history = TeamHistory(
+                        player_id=player_id,
+                        teammate_id=teammate_id,
+                        times_paired=1,
+                        average_place=None
+                    )
+                    db.session.add(history)
+
+def _update_seasonal_points(tournament_id):
+    """Update seasonal points for all players in tournament"""
+    from models import RegisteredPlayer, TournamentRegistration
+    
+    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    
+    for reg in registrations:
+        player = RegisteredPlayer.query.get(reg.player_id)
+        if player:
+            # Calculate points: 1 for participation + match wins + top 4 bonus + undefeated bonus
+            participation_points = 1
+            match_wins = _count_match_wins(tournament_id, reg.player_id)
+            top_4_bonus = 2 if _is_top_4_finish(tournament_id, reg.player_id) else 0
+            undefeated_bonus = 3 if _is_undefeated(tournament_id, reg.player_id) else 0
+            
+            total_points = participation_points + match_wins + top_4_bonus + undefeated_bonus
+            player.seasonal_points += total_points
+
+def _distribute_cash_payouts(tournament_id):
+    """Calculate and distribute cash payouts to players"""
+    from models import RegisteredPlayer, TournamentRegistration, Team, AcePot
+    
+    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    total_participants = len(registrations)
+    total_payout_pot = 5 * total_participants
+    
+    # Get total ace pot balance across all tournaments
+    ace_pot_balance = db.session.query(db.func.sum(AcePot.amount)).scalar() or 0
+    
+    # Find 1st and 2nd place teams
+    first_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=1).first()
+    second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
+    
+    # Calculate payouts
+    second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
+    first_place_payout = total_payout_pot - second_place_payout
+    
+    # Check if first place went undefeated for ace pot
+    ace_pot_payout = 0
+    if first_place_team and _team_is_undefeated(tournament_id, first_place_team.team_id):
+        ace_pot_payout = ace_pot_balance
+        first_place_payout += ace_pot_payout
+        
+        # Update ace pot tracker
+        if ace_pot_payout > 0:
+            # Get player names for description
+            from models import RegisteredPlayer
+            player1 = RegisteredPlayer.query.get(first_place_team.player1_id)
+            player2 = RegisteredPlayer.query.get(first_place_team.player2_id) if first_place_team.player2_id else None
+            
+            if player2 and not first_place_team.is_ghost_team:
+                team_names = f"{player1.player_name} & {player2.player_name}"
+            else:
+                team_names = player1.player_name
+            
+            payout_entry = AcePot(
+                tournament_id=tournament_id,
+                date=db.func.current_date(),
+                description=f'Ace pot payout to {team_names}',
+                amount=-ace_pot_payout
+            )
+            db.session.add(payout_entry)
+    
+    # Distribute cash to players
+    for reg in registrations:
+        player = RegisteredPlayer.query.get(reg.player_id)
+        if player:
+            player_team = Team.query.filter_by(tournament_id=tournament_id).filter(
+                db.or_(Team.player1_id == reg.player_id, Team.player2_id == reg.player_id)
+            ).first()
+            
+            if player_team:
+                teammates_count = 2 if player_team.player2_id and not player_team.is_ghost_team else 1
+                
+                if player_team.final_place == 1:
+                    player.seasonal_cash += Decimal(str(first_place_payout / teammates_count))
+                elif player_team.final_place == 2:
+                    player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
+
+def _count_match_wins(tournament_id, player_id):
+    """Count matches won by player's team"""
+    from models import Team
+    
+    # Find teams this player was on
+    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).all()
+    
+    wins = 0
+    for team in teams:
+        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
+        ).filter(Match.match_status == 'Completed').all()
+        
+        for match in matches:
+            if ((match.team1_id == team.team_id and match.team1_score > match.team2_score) or
+                (match.team2_id == team.team_id and match.team2_score > match.team1_score)):
+                wins += 1
+    
+    return wins
+
+def _is_top_4_finish(tournament_id, player_id):
+    """Check if player finished in top 4"""
+    from models import Team
+    
+    team = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).first()
+    
+    return team and team.final_place and team.final_place <= 4
+
+def _is_undefeated(tournament_id, player_id):
+    """Check if player's team went undefeated"""
+    from models import Team
+    
+    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
+    ).all()
+    
+    for team in teams:
+        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
+        ).filter(Match.match_status == 'Completed').all()
+        
+        for match in matches:
+            # If team lost any match, not undefeated
+            if ((match.team1_id == team.team_id and match.team1_score < match.team2_score) or
+                (match.team2_id == team.team_id and match.team2_score < match.team1_score)):
+                return False
+    
+    return True
+
+def _team_is_undefeated(tournament_id, team_id):
+    """Check if specific team went undefeated"""
+    matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Match.team1_id == team_id, Match.team2_id == team_id)
+    ).filter(Match.match_status == 'Completed').all()
+    
+    for match in matches:
+        # If team lost any match, not undefeated
+        if ((match.team1_id == team_id and match.team1_score < match.team2_score) or
+            (match.team2_id == team_id and match.team2_score < match.team1_score)):
+            return False
+    
+    return True
+
+@matches_bp.route('/api/tournaments/<int:tournament_id>/create-championship', methods=['POST'])
+def create_championship_round(tournament_id):
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    
+    # Get the highest match_id to continue numbering
+    last_match = Match.query.filter_by(tournament_id=tournament_id).order_by(Match.match_id.desc()).first()
+    next_match_id = (last_match.match_id + 1) if last_match else 1
+    
+    # Create Championship Match 1 (WB winner vs LB winner)
+    championship_1 = Match(
+        tournament_id=tournament_id,
+        match_id=next_match_id,
+        stage_type='Finals',
+        round_type='Championship',
+        round_number=0,
+        position_in_round=0,
+        stage_match_number=next_match_id,
+        match_order=next_match_id,
+        match_status='Pending'
+    )
+    
+    # Find and seed the survivors
+    wb_final = Match.query.filter_by(tournament_id=tournament_id, round_type='Winners').order_by(Match.round_number.desc()).first()
+    lb_final = Match.query.filter_by(tournament_id=tournament_id, round_type='Losers').order_by(Match.round_number.desc()).first()
+    
+    if wb_final and wb_final.match_status == 'Completed':
+        wb_winner = wb_final.team1_id if wb_final.team1_score > wb_final.team2_score else wb_final.team2_id
+        championship_1.team1_id = wb_winner
+        
+    if lb_final and lb_final.match_status == 'Completed':
+        lb_winner = lb_final.team1_id if lb_final.team1_score > lb_final.team2_score else lb_final.team2_id
+        championship_1.team2_id = lb_winner
+        
+    # If both teams are seeded, make it schedulable
+    if championship_1.team1_id and championship_1.team2_id:
+        championship_1.match_status = 'Scheduled'
+    
+    db.session.add(championship_1)
+    db.session.commit()
+    
+    return jsonify({
+        'tournament_id': tournament_id,
+        'championship_match_1': championship_1.match_id,
+        'message': 'Championship match created'
+    }), 201

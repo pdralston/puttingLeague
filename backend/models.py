@@ -82,3 +82,5 @@ class Match(db.Model):
     match_status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Pending'), default='Pending')
     winner_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
     loser_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
+    parent_winner_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
+    parent_loser_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
