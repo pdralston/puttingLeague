@@ -179,266 +179,135 @@ def generate_matches(tournament_id):
     if tournament.status != 'Scheduled':
         return jsonify({'error': f'Cannot generate matches for tournament with status: {tournament.status}'}), 400
     
-    # Get teams for this tournament
     teams = Team.query.filter_by(tournament_id=tournament_id).all()
-    if not teams:
-        return jsonify({'error': 'No teams found for tournament'}), 400
+    if len(teams) < 4:
+        return jsonify({'error': 'Need at least 4 teams'}), 400
     
-    team_count = len(teams)
-    matches = _generate_winners_bracket(tournament_id, teams, 1)
-    _generate_losers_bracket(matches)
+    # Calculate bracket parameters
+    bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
+    wb_rounds = int(math.log2(bracket_size))
+    byes_needed = bracket_size - len(teams)
     
-    # Bulk insert all matches
+    matches = []
+    match_id = 1
+    
+    # Create winners bracket matches
+    for round_num in range(wb_rounds):
+        matches_in_round = bracket_size >> (round_num + 1)
+        for pos in range(matches_in_round):
+            matches.append(Match(
+                tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
+                round_type='Winners', round_number=round_num, position_in_round=pos,
+                stage_match_number=match_id, match_order=match_id, match_status='Pending'
+            ))
+            match_id += 1
+    
+    # Create losers bracket matches (only if needed)
+    if len(teams) - byes_needed > 1:
+        lb_rounds = (wb_rounds - 1) * 2
+        for round_num in range(lb_rounds):
+            matches_in_round = 1 if round_num == 0 else bracket_size >> ((round_num + 2) // 2 + 1)
+            for pos in range(matches_in_round):
+                matches.append(Match(
+                    tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
+                    round_type='Losers', round_number=round_num, position_in_round=pos,
+                    stage_match_number=match_id, match_order=match_id, match_status='Pending'
+                ))
+                match_id += 1
+    
+    # Create championship match
+    championship = Match(
+        tournament_id=tournament_id, match_id=match_id, stage_type='Finals',
+        round_type='Championship', round_number=0, position_in_round=0,
+        stage_match_number=match_id, match_order=match_id, match_status='Pending'
+    )
+    matches.append(championship)
+    
+    # Set all advancement paths in memory
+    wb_matches = [m for m in matches if m.round_type == 'Winners']
+    lb_matches = [m for m in matches if m.round_type == 'Losers']
+    
+    # Winners bracket progression
+    for match in wb_matches:
+        if match.round_number < wb_rounds - 1:
+            next_pos = match.position_in_round // 2
+            next_match = next((m for m in wb_matches 
+                             if m.round_number == match.round_number + 1 
+                             and m.position_in_round == next_pos), None)
+            if next_match:
+                match.winner_advances_to_match_id = next_match.match_id
+        else:
+            match.winner_advances_to_match_id = championship.match_id
+    
+    # Losers bracket progression
+    for match in lb_matches:
+        if match.round_number < len(lb_matches) and match.round_number < (wb_rounds - 1) * 2 - 1:
+            next_pos = match.position_in_round // 2
+            next_match = next((m for m in lb_matches 
+                             if m.round_number == match.round_number + 1 
+                             and m.position_in_round == next_pos), None)
+            if next_match:
+                match.winner_advances_to_match_id = next_match.match_id
+        else:
+            match.winner_advances_to_match_id = championship.match_id
+    
+    # Seed teams and handle byes
+    first_round = [m for m in wb_matches if m.round_number == 0]
+    bye_matches_to_remove = []
+    
+    for i in range(byes_needed):
+        first_round[i].team1_id = teams[i].team_id
+        first_round[i].match_status = 'Scheduled'
+        # Auto-advance bye teams
+        if first_round[i].winner_advances_to_match_id:
+            next_match = next((m for m in matches if m.match_id == first_round[i].winner_advances_to_match_id), None)
+            if next_match:
+                if next_match.team1_id is None:
+                    next_match.team1_id = teams[i].team_id
+                elif next_match.team2_id is None:
+                    next_match.team2_id = teams[i].team_id
+                if next_match.team1_id and next_match.team2_id:
+                    next_match.match_status = 'Scheduled'
+        bye_matches_to_remove.append(first_round[i])
+    
+    # Seed real matches
+    team_idx = byes_needed
+    for i in range(byes_needed, len(first_round)):
+        if team_idx < len(teams):
+            first_round[i].team1_id = teams[team_idx].team_id
+            team_idx += 1
+        if team_idx < len(teams):
+            first_round[i].team2_id = teams[team_idx].team_id
+            first_round[i].match_status = 'Scheduled'
+            team_idx += 1
+    
+    # Set losers bracket drops for real matches only
+    for match in wb_matches:
+        if match.round_number == 0 and match.team2_id is not None:
+            lb_match = next((m for m in lb_matches if m.round_number == 0), None)
+            if lb_match:
+                match.loser_advances_to_match_id = lb_match.match_id
+        elif match.round_number > 0:
+            lb_round = (match.round_number - 1) * 2 + 1
+            lb_match = next((m for m in lb_matches 
+                           if m.round_number == lb_round and m.position_in_round == match.position_in_round), None)
+            if lb_match:
+                match.loser_advances_to_match_id = lb_match.match_id
+    
+    # Remove bye matches from the list
+    for bye_match in bye_matches_to_remove:
+        matches.remove(bye_match)
+    
+    # Single database transaction
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
     db.session.add_all(matches)
     db.session.commit()
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     
-    return jsonify({
-        'tournament_id': tournament_id,
-        'matches_created': len(matches)
-    }), 201
+    return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201
     
 
-def _generate_winners_bracket(tournament_id: int, teams: List[Team], start_order: int) -> List[Match]:
-    """Generate winners bracket matches"""
-    import random
-    
-    team_count = len(teams)
-    if team_count < 4:
-        raise ValueError("Need at least 4 teams")
-    
-    random.shuffle(teams)
-    
-    # Calculate bracket size (next power of 2)
-    bracket_size = 1 << (team_count - 1).bit_length()
-    wb_rounds = int(math.log2(bracket_size))
-    
-    matches = []
-    match_id = start_order
-    wb_matches = []
-    
-    # Create winners bracket matches
-    for round_num in range(wb_rounds):
-        matches_in_round = bracket_size >> (round_num + 1)
-        round_matches = []
-        for pos in range(matches_in_round):
-            match = {
-                'id': match_id,
-                'round_num': round_num,
-                'position': pos,
-                'winner_to': None,
-                'loser_to': None
-            }
-            matches.append(match)
-            round_matches.append(match)
-            match_id += 1
-        wb_matches.append(round_matches)
-    
-    # Set winner advancement paths
-    for match in matches:
-        round_num = match['round_num']
-        pos = match['position']
-        
-        if round_num < wb_rounds - 1:
-            next_pos = pos // 2
-            next_match = wb_matches[round_num + 1][next_pos]
-            match['winner_to'] = next_match['id']
-            
-            # Set parent relationship
-            if next_match.get('parent_match_id_one') is None:
-                next_match['parent_match_id_one'] = match['id']
-            else:
-                next_match['parent_match_id_two'] = match['id']
-    
-    # Convert to database objects and filter out empty matches
-    # Convert to database objects
-    db_matches = []
-    for match in matches:
-        db_match = Match(
-            tournament_id=tournament_id,
-            match_id=match['id'],
-            stage_type='Group_A',
-            round_type='Winners',
-            round_number=match['round_num'],
-            position_in_round=match['position'],
-            stage_match_number=match['id'],
-            match_order=match['id'],
-            winner_advances_to_match_id=match['winner_to'],
-            loser_advances_to_match_id=match['loser_to'],
-            parent_match_id_one=match.get('parent_match_id_one'),
-            parent_match_id_two=match.get('parent_match_id_two'),
-            match_status='Pending'
-        )
-        
-        # Seed teams into first round with byes system
-        if match['round_num'] == 0:
-            pos = match['position']
-            team1_idx = pos * 2
-            team2_idx = pos * 2 + 1
-            
-            if team1_idx < team_count:
-                db_match.team1_id = teams[team1_idx].team_id
-                
-                if team2_idx < team_count:
-                    # Regular match - both teams present
-                    db_match.team2_id = teams[team2_idx].team_id
-                    db_match.match_status = 'Scheduled'
-                else:
-                    # Bye - only team1, auto-advance
-                    db_match.match_status = 'Completed'
-                    db_match.team1_score = 1
-                    db_match.team2_score = 0
-        
-        db_matches.append(db_match)
-
-    # Process byes - advance winners automatically
-    _process_byes(db_matches)
-    
-    return db_matches
-
-def _trim_empty_first_round(matches: List[Match]) -> List[Match]:
-    """Remove matches that have no teams assigned or no valid incoming paths"""
-    matches_to_remove = []
-    
-    for match in matches:
-        should_remove = False
-        
-        if match.round_number == 0 and match.round_type == 'Winners':
-            # Remove winners bracket first-round matches with no teams
-            if match.team1_id is None and match.team2_id is None:
-                should_remove = True
-                
-        elif match.round_type == 'Losers':
-            # Remove losers bracket matches with no incoming paths from existing matches
-            has_incoming = any(m.loser_advances_to_match_id == match.match_id 
-                             for m in matches if m != match and m not in matches_to_remove)
-            if not has_incoming:
-                should_remove = True
-        
-        if should_remove:
-            matches_to_remove.append(match)
-    
-    return [m for m in matches if m not in matches_to_remove]
-    
-    # Process byes - advance winners automatically
-    _process_byes(db_matches)
-    
-    return db_matches
-
-def _process_byes(matches: List[Match]) -> None:
-    """Process bye matches and advance winners to next round"""
-    bye_matches = [m for m in matches if m.match_status == 'Completed' and m.team2_id is None]
-    
-    for bye_match in bye_matches:
-        if bye_match.winner_advances_to_match_id:
-            next_match = next((m for m in matches if m.match_id == bye_match.winner_advances_to_match_id), None)
-            if next_match:
-                if next_match.team1_id is None:
-                    next_match.team1_id = bye_match.team1_id
-                elif next_match.team2_id is None:
-                    next_match.team2_id = bye_match.team1_id
-                    # If both teams are now assigned, schedule the match
-                    if next_match.team1_id and next_match.team2_id:
-                        next_match.match_status = 'Scheduled'
-
-def _generate_losers_bracket(matches: List[Match]) -> None:
-    """Generate losers bracket based on existing winners bracket"""
-    if not matches:
-        raise ValueError("No winners bracket found")
-    
-    start_match_id = matches[-1].match_id
-    tournament_id = matches[-1].tournament_id
-    
-    # Calculate bracket parameters
-    team_count = len([m for m in matches if m.round_number == 0]) * 2
-    num_lb_rounds = int(2 * math.log2(team_count) - 1)
-    
-    # Generate losers bracket matches
-    lb_matches = []
-    match_id = start_match_id + 1
-    wb_round_match_count = team_count / 2
-    lb_round_match_count = wb_round_match_count / 2
-    
-    for round_num in range(num_lb_rounds):
-        matches_for_round = int(wb_round_match_count / 2 if round_num % 2 == 0 else lb_round_match_count)
-        
-        if round_num % 2 == 0:
-            wb_round_match_count /= 2
-            lb_round_match_count = matches_for_round
-        
-        for pos in range(matches_for_round):
-            lb_match = Match(
-                tournament_id=tournament_id,
-                match_id=match_id,
-                stage_type='Group_A',
-                round_type='Losers',
-                round_number=round_num,
-                position_in_round=pos,
-                stage_match_number=match_id,
-                match_order=match_id,
-                match_status='Pending'
-            )
-            lb_matches.append(lb_match)
-            match_id += 1
-    
-    # Group matches by round for easier access
-    wb_by_round = {}
-    lb_by_round = {}
-    
-    for match in matches:
-        wb_by_round.setdefault(match.round_number, []).append(match)
-    
-    for match in lb_matches:
-        lb_by_round.setdefault(match.round_number, []).append(match)
-    
-    # Set WB loser advancement paths
-    _set_wb_loser_paths(wb_by_round, lb_by_round)
-    
-    # Set LB internal progression
-    _set_lb_progression(lb_by_round)
-    
-    matches.extend(lb_matches)
-
-def _set_wb_loser_paths(wb_by_round: dict, lb_by_round: dict) -> None:
-    """Set advancement paths from winners bracket to losers bracket"""
-    # Round 0 losers go to LB round 0
-    wb_first_round = wb_by_round[0]
-    lb_first_round = lb_by_round[0] if 0 in lb_by_round else []
-    
-    for i in range(0, len(wb_first_round), 2):
-        pos = i // 2
-        if pos < len(lb_first_round):  # Check bounds
-            wb_first_round[i].loser_advances_to_match_id = lb_first_round[pos].match_id
-            if i + 1 < len(wb_first_round):
-                wb_first_round[i + 1].loser_advances_to_match_id = lb_first_round[pos].match_id
-    
-    # Subsequent WB losers
-    loser_round_adjust = 0
-    for wb_round in range(1, len(wb_by_round)):
-        for pos, match in enumerate(wb_by_round[wb_round]):
-            lb_round = wb_round + loser_round_adjust
-            if lb_round < len(lb_by_round) and pos < len(lb_by_round[lb_round]):
-                next_match = lb_by_round[lb_round][pos]
-                match.loser_advances_to_match_id = next_match.match_id
-                if next_match.parent_match_id_one is None:
-                    next_match.parent_match_id_one = match.match_id
-                else:
-                    next_match.parent_match_id_two = match.match_id
-        loser_round_adjust += 1
-
-def _set_lb_progression(lb_by_round: dict) -> None:
-    """Set internal losers bracket progression"""
-    for round_num in range(len(lb_by_round) - 1):
-        for match in lb_by_round[round_num]:
-            next_pos = match.position_in_round // 2
-            if next_pos < len(lb_by_round[round_num + 1]):
-                next_match = lb_by_round[round_num + 1][next_pos]
-                match.winner_advances_to_match_id = next_match.match_id
-                if next_match.parent_match_id_one is None:
-                    next_match.parent_match_id_one = match.match_id
-                else:
-                    next_match.parent_match_id_two = match.match_id
+# Removed old bracket generation functions
   
 
 @matches_bp.route('/api/matches/<int:match_id>/score', methods=['PUT'])
@@ -565,9 +434,9 @@ def _rollback_match_advancements(match, old_winner_id, old_loser_id):
     
     return rollbacks
 
-def _advance_team_to_match(team_id, target_match_id):
+def _advance_team_to_match(team_id, tournament_id, target_match_id):
     """Advance a team to the next match"""
-    target_match = Match.query.filter_by(match_id=target_match_id).first()
+    target_match = Match.query.filter_by(tournament_id=tournament_id, match_id=target_match_id).first()
     if not target_match:
         return False
     
@@ -834,7 +703,7 @@ def _distribute_cash_payouts(tournament_id):
                     player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
 
 def _count_match_wins(tournament_id, player_id):
-    """Count matches won by player's team"""
+    """Count matches won by player's team (excluding byes)"""
     from models import Team
     
     # Find teams this player was on
@@ -849,6 +718,10 @@ def _count_match_wins(tournament_id, player_id):
         ).filter(Match.match_status == 'Completed').all()
         
         for match in matches:
+            # Skip bye matches (only one team)
+            if match.team2_id is None:
+                continue
+                
             if ((match.team1_id == team.team_id and match.team1_score > match.team2_score) or
                 (match.team2_id == team.team_id and match.team2_score > match.team1_score)):
                 wins += 1
