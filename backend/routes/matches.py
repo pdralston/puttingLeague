@@ -185,7 +185,7 @@ def generate_matches(tournament_id):
     
     matches = []
     match_id = 1
-    bracket_size = 1 << (len(teams) - 1).bit_length()
+    bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     wb_rounds = int(math.log2(bracket_size))
     byes_needed = bracket_size - len(teams)
     
@@ -278,6 +278,25 @@ def generate_matches(tournament_id):
             first_round[i].team2_id = teams[team_idx].team_id
             first_round[i].match_status = 'Scheduled'
             team_idx += 1
+    
+    # Auto-advance and remove bye matches
+    bye_matches = [m for m in first_round if m.team2_id is None]
+    for bye_match in bye_matches:
+        # Advance team to next round
+        if bye_match.winner_advances_to_match_id:
+            next_match = next((m for m in matches if m.match_id == bye_match.winner_advances_to_match_id), None)
+            if next_match:
+                if next_match.team1_id is None:
+                    next_match.team1_id = bye_match.team1_id
+                elif next_match.team2_id is None:
+                    next_match.team2_id = bye_match.team1_id
+                
+                # If both teams now assigned, schedule the match
+                if next_match.team1_id and next_match.team2_id:
+                    next_match.match_status = 'Scheduled'
+        
+        # Remove bye match from database
+        db.session.delete(bye_match)
     
     # Set losers bracket drops
     for match in wb_matches:
@@ -694,7 +713,7 @@ def _distribute_cash_payouts(tournament_id):
                     player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
 
 def _count_match_wins(tournament_id, player_id):
-    """Count matches won by player's team"""
+    """Count matches won by player's team (excluding byes)"""
     from models import Team
     
     # Find teams this player was on
@@ -709,6 +728,10 @@ def _count_match_wins(tournament_id, player_id):
         ).filter(Match.match_status == 'Completed').all()
         
         for match in matches:
+            # Skip bye matches (only one team)
+            if match.team2_id is None:
+                continue
+                
             if ((match.team1_id == team.team_id and match.team1_score > match.team2_score) or
                 (match.team2_id == team.team_id and match.team2_score > match.team1_score)):
                 wins += 1
