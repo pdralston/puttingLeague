@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import './components/Bracket.css';
+
 import './components/PlayerManager.css';
 import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';

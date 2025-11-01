@@ -128,7 +128,7 @@ def score_match(tournament_id, match_id):
             if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
                 next_match.match_status = 'Scheduled'
     
-    # Auto-advance matches with only one parent that's completed
+    # Auto-advance matches with only one team (bye matches)
     _auto_advance_byes(tournament_id)
     
     # Handle championship match completion
@@ -452,51 +452,46 @@ def _advance_team_to_match(team_id, tournament_id, target_match_id):
     return False
 
 def _auto_advance_byes(tournament_id):
-    """Auto-advance teams in matches that have only one parent completed or one team seeded"""
+    """Auto-advance teams in bye matches (matches with only one team that won't get a second team)"""
     matches = Match.query.filter_by(tournament_id=tournament_id).all()
     
     for match in matches:
-        if match.match_status not in ['Pending', 'Scheduled']:
+        # Skip if match is already completed or in progress
+        if match.match_status not in ['Pending']:
             continue
-        
-        # Case 1: Check parent-based advancement for true byes
-        parent_winner = None
-        parent_loser = None
-        
-        if match.parent_match_id_one:
-            parent_winner = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_match_id_one).first()
-        if match.parent_match_id_two:
-            parent_loser = Match.query.filter_by(tournament_id=tournament_id, match_id=match.parent_match_id_two).first()
             
-        # Count completed parents
-        completed_parents = 0
-        advancing_team_id = None
-        
-        if parent_winner and parent_winner.match_status == 'Completed':
-            completed_parents += 1
-            # For losers bracket matches, we want the loser from winners bracket
-            if match.round_type == 'Losers' and parent_winner.round_type == 'Winners':
-                advancing_team_id = parent_winner.team2_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team1_id
-            else:
-                advancing_team_id = parent_winner.team1_id if parent_winner.team1_score > parent_winner.team2_score else parent_winner.team2_id
+        # Check if this is a bye match (has one team but no second team will come)
+        if match.team1_id and not match.team2_id:
+            # Count how many matches feed into this match
+            feeding_matches = [m for m in matches if 
+                             m.winner_advances_to_match_id == match.match_id or 
+                             m.loser_advances_to_match_id == match.match_id]
             
-        if parent_loser and parent_loser.match_status == 'Completed':
-            completed_parents += 1
-            # For losers bracket, this is typically another losers bracket match, so we want the winner
-            advancing_team_id = parent_loser.team1_id if parent_loser.team1_score > parent_loser.team2_score else parent_loser.team2_id
-        
-        # Auto-advance if only one parent exists and is completed
-        total_parents = (1 if match.parent_match_id_one else 0) + (1 if match.parent_match_id_two else 0)
-        
-        if total_parents == 1 and completed_parents == 1 and advancing_team_id:
-            match.team1_id = advancing_team_id
-            match.team1_score = 1
-            match.team2_score = 0
-            match.match_status = 'Completed'
+            # If only one match feeds into this one and it's completed, this is a bye
+            completed_feeding = [m for m in feeding_matches if m.match_status == 'Completed']
             
-            # Advance to next match
-            if match.winner_advances_to_match_id:
-                _advance_team_to_match(advancing_team_id, match.winner_advances_to_match_id)
+            if len(feeding_matches) == 1 and len(completed_feeding) == 1:
+                # This is a true bye - auto-advance
+                match.team1_score = 1
+                match.team2_score = 0
+                match.match_status = 'Completed'
+                
+                # Advance the team to the next match
+                if match.winner_advances_to_match_id:
+                    next_match = next((m for m in matches if m.match_id == match.winner_advances_to_match_id), None)
+                    if next_match:
+                        if not next_match.team1_id:
+                            next_match.team1_id = match.team1_id
+                        elif not next_match.team2_id:
+                            next_match.team2_id = match.team1_id
+                        
+                        # Update status to Scheduled if both teams are now assigned
+                        if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
+                            next_match.match_status = 'Scheduled'
+            elif len(feeding_matches) == 0:
+                # This match has a seeded team but no feeding matches - it's waiting for another team
+                # Check if it should be scheduled (if it will get a second team from another completed match)
+                pass  # Keep as Pending until second team arrives
 
 def _handle_championship_completion(match, winner_team_id, loser_team_id):
     """Handle championship match completion - either end tournament or create final match"""

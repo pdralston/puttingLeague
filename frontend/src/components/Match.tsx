@@ -31,41 +31,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     return match.team2_id === null && match.match_status === 'Scheduled';
   };
 
-  const handleAdvanceBye = () => {
-    if (!onScoreMatch || !isByeMatch()) return;
-    
-    // Case 1: Team already seeded, just advance them
-    if (match.team1_id && !match.team2_id) {
-      onScoreMatch(match.match_id, 1, 0);
-    } else if (!match.team1_id && match.team2_id) {
-      onScoreMatch(match.match_id, 0, 1);
-    } 
-    // Case 2: No teams seeded, find the winner from completed feeding match
-    else if (!match.team1_id && !match.team2_id) {
-      const feedingMatches = allMatches.filter(m => 
-        m.winner_advances_to_match_id === match.match_id || 
-        m.loser_advances_to_match_id === match.match_id
-      );
-      
-      const completedFeeding = feedingMatches.find(m => m.match_status === 'Completed');
-      if (completedFeeding && completedFeeding.team1_score !== undefined && completedFeeding.team2_score !== undefined) {
-        // Determine which team advances and score accordingly
-        let advancingTeam;
-        if (completedFeeding.winner_advances_to_match_id === match.match_id) {
-          advancingTeam = completedFeeding.team1_score > completedFeeding.team2_score 
-            ? completedFeeding.team1_id 
-            : completedFeeding.team2_id;
-        } else {
-          advancingTeam = completedFeeding.team1_score < completedFeeding.team2_score 
-            ? completedFeeding.team1_id 
-            : completedFeeding.team2_id;
-        }
-        
-        // Score the match with the advancing team as winner
-        onScoreMatch(match.match_id, 1, 0);
-      }
-    }
-  };
+
   const getWinner = () => {
     if (match.match_status !== 'Completed') {
       return null;
@@ -167,14 +133,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
           ▶ Start
         </button>
       )}
-      {isByeMatch() && onScoreMatch && (
-        <button 
-          className="advance-button" 
-          onClick={handleAdvanceBye}
-        >
-          ⏭ Advance
-        </button>
-      )}
+
       {match.match_status === 'In_Progress' && onScoreMatch && (
         <button 
           className="score-button" 
