@@ -4,7 +4,7 @@ import './components/Bracket.css';
 import './components/PlayerManager.css';
 import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';
-import './components/TournamentView.css';
+
 import './components/AcePotTracker.css';
 import './components/TournamentCreation.css';
 import UnifiedTournamentView from './components/UnifiedTournamentView';
