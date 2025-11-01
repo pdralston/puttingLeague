@@ -183,44 +183,39 @@ def generate_matches(tournament_id):
     if len(teams) < 4:
         return jsonify({'error': 'Need at least 4 teams'}), 400
     
-    matches = []
-    match_id = 1
+    # Calculate bracket parameters
     bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     wb_rounds = int(math.log2(bracket_size))
     byes_needed = bracket_size - len(teams)
     
-    # Winners bracket
+    matches = []
+    match_id = 1
+    
+    # Create winners bracket matches
     for round_num in range(wb_rounds):
         matches_in_round = bracket_size >> (round_num + 1)
         for pos in range(matches_in_round):
-            match = Match(
+            matches.append(Match(
                 tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
                 round_type='Winners', round_number=round_num, position_in_round=pos,
                 stage_match_number=match_id, match_order=match_id, match_status='Pending'
-            )
-            matches.append(match)
+            ))
             match_id += 1
     
-    # Losers bracket - only create matches that will receive teams
-    real_matches = len([t for t in teams]) - byes_needed  # Teams that will actually play
-    if real_matches > 1:  # Need at least 2 teams playing to have losers bracket
+    # Create losers bracket matches (only if needed)
+    if len(teams) - byes_needed > 1:
         lb_rounds = (wb_rounds - 1) * 2
         for round_num in range(lb_rounds):
-            if round_num == 0:
-                matches_in_round = 1  # Only one match in LB round 0 for first round losers
-            else:
-                matches_in_round = bracket_size >> ((round_num + 2) // 2 + 1)
-            
+            matches_in_round = 1 if round_num == 0 else bracket_size >> ((round_num + 2) // 2 + 1)
             for pos in range(matches_in_round):
-                match = Match(
+                matches.append(Match(
                     tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
                     round_type='Losers', round_number=round_num, position_in_round=pos,
                     stage_match_number=match_id, match_order=match_id, match_status='Pending'
-                )
-                matches.append(match)
+                ))
                 match_id += 1
     
-    # Championship
+    # Create championship match
     championship = Match(
         tournament_id=tournament_id, match_id=match_id, stage_type='Finals',
         round_type='Championship', round_number=0, position_in_round=0,
@@ -228,12 +223,7 @@ def generate_matches(tournament_id):
     )
     matches.append(championship)
     
-    # Insert matches
-    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-    db.session.add_all(matches)
-    db.session.flush()
-    
-    # Set advancement paths
+    # Set all advancement paths in memory
     wb_matches = [m for m in matches if m.round_type == 'Winners']
     lb_matches = [m for m in matches if m.round_type == 'Losers']
     
@@ -251,7 +241,7 @@ def generate_matches(tournament_id):
     
     # Losers bracket progression
     for match in lb_matches:
-        if match.round_number < lb_rounds - 1:
+        if match.round_number < len(lb_matches) and match.round_number < (wb_rounds - 1) * 2 - 1:
             next_pos = match.position_in_round // 2
             next_match = next((m for m in lb_matches 
                              if m.round_number == match.round_number + 1 
@@ -261,14 +251,26 @@ def generate_matches(tournament_id):
         else:
             match.winner_advances_to_match_id = championship.match_id
     
-    # Seed teams
+    # Seed teams and handle byes
     first_round = [m for m in wb_matches if m.round_number == 0]
-    byes_needed = bracket_size - len(teams)
+    bye_matches_to_remove = []
     
     for i in range(byes_needed):
         first_round[i].team1_id = teams[i].team_id
         first_round[i].match_status = 'Scheduled'
+        # Auto-advance bye teams
+        if first_round[i].winner_advances_to_match_id:
+            next_match = next((m for m in matches if m.match_id == first_round[i].winner_advances_to_match_id), None)
+            if next_match:
+                if next_match.team1_id is None:
+                    next_match.team1_id = teams[i].team_id
+                elif next_match.team2_id is None:
+                    next_match.team2_id = teams[i].team_id
+                if next_match.team1_id and next_match.team2_id:
+                    next_match.match_status = 'Scheduled'
+        bye_matches_to_remove.append(first_round[i])
     
+    # Seed real matches
     team_idx = byes_needed
     for i in range(byes_needed, len(first_round)):
         if team_idx < len(teams):
@@ -279,26 +281,7 @@ def generate_matches(tournament_id):
             first_round[i].match_status = 'Scheduled'
             team_idx += 1
     
-    # Auto-advance and remove bye matches
-    bye_matches = [m for m in first_round if m.team2_id is None]
-    for bye_match in bye_matches:
-        # Advance team to next round
-        if bye_match.winner_advances_to_match_id:
-            next_match = next((m for m in matches if m.match_id == bye_match.winner_advances_to_match_id), None)
-            if next_match:
-                if next_match.team1_id is None:
-                    next_match.team1_id = bye_match.team1_id
-                elif next_match.team2_id is None:
-                    next_match.team2_id = bye_match.team1_id
-                
-                # If both teams now assigned, schedule the match
-                if next_match.team1_id and next_match.team2_id:
-                    next_match.match_status = 'Scheduled'
-        
-        # Remove bye match from database
-        db.session.delete(bye_match)
-    
-    # Set losers bracket drops
+    # Set losers bracket drops for real matches only
     for match in wb_matches:
         if match.round_number == 0 and match.team2_id is not None:
             lb_match = next((m for m in lb_matches if m.round_number == 0), None)
@@ -311,6 +294,13 @@ def generate_matches(tournament_id):
             if lb_match:
                 match.loser_advances_to_match_id = lb_match.match_id
     
+    # Remove bye matches from the list
+    for bye_match in bye_matches_to_remove:
+        matches.remove(bye_match)
+    
+    # Single database transaction
+    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+    db.session.add_all(matches)
     db.session.commit()
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     
