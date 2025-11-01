@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Match as MatchType, Team } from '../types/tournament';
+import { getTeamName, getTeamDisplayName, findTeamById } from '../utils/teamUtils';
 
 interface MatchProps {
   match: MatchType;
@@ -76,23 +77,11 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     return null;
   };
 
-  const getTeamName = (teamId: number): string => {
-    const team = teams.find(t => t.team_id === teamId);
-    if (team) {
-      const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
-      const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
-      return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
-    }
-    return `Team ${teamId}`;
-  };
-
   const getTeamDisplay = (teamId?: number, isTeam1: boolean = true) => {
     if (teamId) {
-      const team = teams.find(t => t.team_id === teamId);
+      const team = findTeamById(teams, teamId);
       if (team) {
-        const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
-        const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
-        return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
+        return getTeamDisplayName(team);
       }
       return `Team ${teamId}`;
     }
@@ -114,9 +103,9 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
       
       // For matches with one team already seeded, the empty slot gets the feeding match result
       if (match.team1_id && !match.team2_id) {
-        return isTeam1 ? getTeamName(match.team1_id) : `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+        return isTeam1 ? getTeamName(teams, match.team1_id) : `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
       } else if (!match.team1_id && match.team2_id) {
-        return isTeam1 ? `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}` : getTeamName(match.team2_id);
+        return isTeam1 ? `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}` : getTeamName(teams, match.team2_id);
       } else {
         // Neither team seeded yet
         if (isTeam1) {

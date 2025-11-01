@@ -1,5 +1,6 @@
 import React from 'react';
 import { Match as MatchType, Team } from '../types/tournament';
+import { getTeamName, getTeamDisplayName, findTeamById } from '../utils/teamUtils';
 
 interface BracketViewProps {
   matches: MatchType[];

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config/api';
 import Bracket from './Bracket';
 import { Tournament, Match } from '../types/tournament';
+import { getTeamName } from '../utils/teamUtils';
 
 interface UnifiedTournamentViewProps {
   tournamentId: number;
@@ -38,15 +39,9 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     return tournament.matches.filter(match => match.match_status === 'In_Progress');
   };
 
-  const getTeamName = (teamId?: number | null): string => {
-    if (!teamId || !tournament) return 'TBD';
-    const team = tournament.teams.find(t => t.team_id === teamId);
-    if (!team) return 'TBD';
-    
-    const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
-    const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
-    
-    return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
+  const getTeamDisplayName = (teamId?: number | null): string => {
+    if (!tournament) return 'TBD';
+    return getTeamName(tournament.teams, teamId);
   };
 
   const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
@@ -179,7 +174,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
               <div key={match.match_id} className="active-match">
                 <div className="station">Station {match.station_assignment}</div>
                 <div className="teams">
-                  {getTeamName(match.team1_id)} vs {getTeamName(match.team2_id)}
+                  {getTeamDisplayName(match.team1_id)} vs {getTeamDisplayName(match.team2_id)}
                 </div>
               </div>
             ))}
@@ -220,7 +215,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                   return (
                     <div key={team.team_id} className={`place-result ${isUndefeated && team.final_place === 1 ? 'undefeated-winner' : ''}`}>
                       <div className="place-number">{team.final_place}</div>
-                      <div className="team-name">{getTeamName(team.team_id)}</div>
+                      <div className="team-name">{getTeamDisplayName(team.team_id)}</div>
                       {isUndefeated && team.final_place === 1 && <div className="ace-stamp">ACE</div>}
                       <div className="award">{getAward(team.final_place || 0, payout)}</div>
                     </div>
