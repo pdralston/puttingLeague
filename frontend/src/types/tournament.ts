@@ -5,7 +5,9 @@ export interface Team {
   is_ghost_team: boolean;
   seed_number: number;
   player1_name?: string;
+  player1_nickname?: string;
   player2_name?: string;
+  player2_nickname?: string;
   final_place?: number;
 }
 

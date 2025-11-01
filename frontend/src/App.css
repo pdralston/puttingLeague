@@ -199,3 +199,12 @@ main {
   background: #6c757d;
   color: white;
 }
+/* Tournament View Font Size */
+.bracket-view .team .team-name {
+  font-size: 1.25rem;
+}
+
+.bracket-view .team-score,
+.bracket-view .match-status {
+  font-size: 1.25rem;
+}

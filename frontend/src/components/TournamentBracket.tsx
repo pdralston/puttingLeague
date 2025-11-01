@@ -33,10 +33,14 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     const team = tournament.teams.find(t => t.team_id === teamId);
     if (!team) return 'TBD';
     
-    const player1Name = team.player1_name || `Player ${team.player1_id}`;
-    const player2Name = team.player2_name || (team.player2_id ? `Player ${team.player2_id}` : '');
+    const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
+    const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
     
     return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
+  };
+
+  const isByeMatch = (match: Match): boolean => {
+    return match.team2_id === null;
   };
 
   const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
@@ -94,57 +98,6 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
     }
   };
 
-  const isReadyForChampionship = (): boolean => {
-    if (!tournament) return false;
-    const nonChampionshipMatches = tournament.matches.filter(m => m.round_type !== 'Championship');
-    const championshipMatches = tournament.matches.filter(m => m.round_type === 'Championship');
-    
-    // Ready for championship if all non-championship matches are done AND no championship matches exist yet
-    return nonChampionshipMatches.length > 0 && 
-           nonChampionshipMatches.every(m => m.match_status === 'Completed') &&
-           championshipMatches.length === 0;
-  };
-
-  const getSurvivors = (): { wbWinner: number | null, lbWinner: number | null } => {
-    if (!tournament) return { wbWinner: null, lbWinner: null };
-    
-    const wbFinal = tournament.matches
-      .filter(m => m.round_type === 'Winners')
-      .sort((a, b) => b.round_number - a.round_number)[0];
-    
-    const lbFinal = tournament.matches
-      .filter(m => m.round_type === 'Losers')
-      .sort((a, b) => b.round_number - a.round_number)[0];
-    
-    const wbWinner = (wbFinal?.team1_score && wbFinal?.team2_score && wbFinal.team1_score > wbFinal.team2_score) 
-      ? wbFinal.team1_id || null 
-      : wbFinal?.team2_id || null;
-    
-    const lbWinner = (lbFinal?.team1_score && lbFinal?.team2_score && lbFinal.team1_score > lbFinal.team2_score) 
-      ? lbFinal.team1_id || null 
-      : lbFinal?.team2_id || null;
-    
-    return { wbWinner, lbWinner };
-  };
-
-  const handleStartChampionship = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/create-championship`, {
-        method: 'POST'
-      });
-      
-      if (response.ok) {
-        const [matches, teams] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
-        ]);
-        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
-      }
-    } catch (error) {
-      console.error('Failed to create championship:', error);
-    }
-  };
-
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
@@ -190,22 +143,6 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
           </div>
         )}
         
-        {isReadyForChampionship() && (
-          <div className="tournament-overlay">
-            <div className="overlay-content">
-              <h2>Championship Round</h2>
-              <p>All matches completed! Two teams have survived:</p>
-              <div style={{ margin: '20px 0' }}>
-                <div><strong>Winners Bracket:</strong> {getTeamName(getSurvivors().wbWinner)}</div>
-                <div><strong>Losers Bracket:</strong> {getTeamName(getSurvivors().lbWinner)}</div>
-              </div>
-              <button className="start-tournament-button" onClick={handleStartChampionship}>
-                Begin Championship Round
-              </button>
-            </div>
-          </div>
-        )}
-        
         {tournamentStatus === 'Completed' && (
           <div className="tournament-overlay">
             <div className="overlay-content">
@@ -218,15 +155,43 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ tournamentId, onB
           </div>
         )}
         
-        <Bracket 
-          matches={tournament.matches}
-          allMatches={tournament.matches}
-          teams={tournament.teams}
-          players={[]}
-          title={`Tournament ${tournamentId}`}
-          onScoreMatch={handleScoreMatch}
-          onStartMatch={handleStartMatch}
-        />
+        <div className="brackets">
+          {tournament.matches.filter(m => m.round_type === 'Winners').length > 0 && (
+            <Bracket 
+              matches={tournament.matches.filter(m => m.round_type === 'Winners')}
+              allMatches={tournament.matches}
+              teams={tournament.teams}
+              players={[]}
+              title="Winners Bracket"
+              onScoreMatch={handleScoreMatch}
+              onStartMatch={handleStartMatch}
+            />
+          )}
+          {tournament.matches.filter(m => m.round_type === 'Losers').length > 0 && (
+            <Bracket 
+              matches={tournament.matches.filter(m => m.round_type === 'Losers')}
+              allMatches={tournament.matches}
+              teams={tournament.teams}
+              players={[]}
+              title="Losers Bracket"
+              onScoreMatch={handleScoreMatch}
+              onStartMatch={handleStartMatch}
+            />
+          )}
+          {tournament.matches.filter(m => m.round_type === 'Championship' && (m.team1_id && m.team2_id)).length > 0 && (
+            <div className="championship-section">
+              <Bracket 
+                matches={tournament.matches.filter(m => m.round_type === 'Championship')}
+                allMatches={tournament.matches}
+                teams={tournament.teams}
+                players={[]}
+                title="🏆 Championship"
+                onScoreMatch={handleScoreMatch}
+                onStartMatch={handleStartMatch}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

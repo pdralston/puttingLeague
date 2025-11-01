@@ -27,10 +27,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
   };
 
   const isByeMatch = () => {
-    return match.round_number !== 0
-    && match.round_type != "Championship" 
-    && (match.parent_match_id_one == null || match.parent_match_id_two == null) 
-    && match.team1_id !== null && match.match_status != "Completed"
+    return match.team2_id === null && match.match_status === 'Scheduled';
   };
 
   const handleAdvanceBye = () => {
@@ -79,11 +76,23 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     return null;
   };
 
+  const getTeamName = (teamId: number): string => {
+    const team = teams.find(t => t.team_id === teamId);
+    if (team) {
+      const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
+      const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
+      return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
+    }
+    return `Team ${teamId}`;
+  };
+
   const getTeamDisplay = (teamId?: number, isTeam1: boolean = true) => {
     if (teamId) {
       const team = teams.find(t => t.team_id === teamId);
-      if (team && team.player1_name) {
-        return team.player2_name ? `${team.player1_name} & ${team.player2_name}` : team.player1_name;
+      if (team) {
+        const player1Name = team.player1_nickname || team.player1_name || `Player ${team.player1_id}`;
+        const player2Name = team.player2_id ? (team.player2_nickname || team.player2_name || `Player ${team.player2_id}`) : '';
+        return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
       }
       return `Team ${teamId}`;
     }
@@ -99,18 +108,25 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     }
     
     if (feedingMatches.length === 1) {
-      // Only one feeding match - this means one slot gets the result, other gets a bye/seed
+      // Only one feeding match - determine which slot gets which team
       const feedingMatch = feedingMatches[0];
       const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
       
-      if (isTeam1) {
-        return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+      // For matches with one team already seeded, the empty slot gets the feeding match result
+      if (match.team1_id && !match.team2_id) {
+        return isTeam1 ? getTeamName(match.team1_id) : `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+      } else if (!match.team1_id && match.team2_id) {
+        return isTeam1 ? `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}` : getTeamName(match.team2_id);
       } else {
-        // Second slot gets a bye or direct seed - check if it's losers bracket
-        if (match.round_type === 'Losers') {
-          return 'Bye/Seed';
+        // Neither team seeded yet
+        if (isTeam1) {
+          return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
         } else {
-          return 'Bye';
+          if (match.round_type === 'Losers') {
+            return 'Bye/Seed';
+          } else {
+            return 'Bye';
+          }
         }
       }
     }

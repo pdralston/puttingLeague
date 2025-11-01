@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config/api';
-import BracketView from './BracketView';
+import Bracket from './Bracket';
 import { Tournament, Match } from '../types/tournament';
 
-interface TournamentViewProps {
+interface UnifiedTournamentViewProps {
   tournamentId: number;
   onBack?: () => void;
+  showManagementActions?: boolean;
 }
 
-const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack }) => {
+const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({ 
+  tournamentId, 
+  onBack, 
+  showManagementActions = false 
+}) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [tournamentStatus, setTournamentStatus] = useState<string>('');
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
@@ -23,7 +28,6 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentStatus(tournamentData.status);
       
-      // Calculate total ace pot balance
       const totalBalance = acePotData.reduce((sum: number, entry: any) => sum + entry.amount, 0);
       setAcePotBalance(totalBalance);
     });
@@ -45,8 +49,65 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
     return team.is_ghost_team ? player1Name : `${player1Name} & ${player2Name}`;
   };
 
-  const isByeMatch = (match: Match): boolean => {
-    return match.team2_id === null;
+  const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
+    if (!showManagementActions) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team1_score: team1Score, team2_score: team2Score })
+      });
+      
+      if (response.ok) {
+        const [matches, teams] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+        ]);
+        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      }
+    } catch (error) {
+      console.error('Failed to score match:', error);
+    }
+  };
+
+  const handleStartMatch = async (matchId: number) => {
+    if (!showManagementActions) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const [matches, teams] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+        ]);
+        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      }
+    } catch (error) {
+      console.error('Failed to start match:', error);
+    }
+  };
+
+  const handleStartTournament = async () => {
+    if (!showManagementActions) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'In_Progress' })
+      });
+
+      if (response.ok) {
+        setTournamentStatus('In_Progress');
+      }
+    } catch (error) {
+      console.error('Failed to start tournament:', error);
+    }
   };
 
   const getTop4Teams = () => {
@@ -74,7 +135,7 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
     const teamMatches = tournament.matches.filter(m => 
       (m.team1_id === teamId || m.team2_id === teamId) && 
       m.match_status === 'Completed' && 
-      !isByeMatch(m)
+      m.team2_id !== null
     );
     
     return teamMatches.every(match => {
@@ -135,6 +196,18 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
       )}
       
       <div className="tournament-content" style={{ position: 'relative' }}>
+        {showManagementActions && tournamentStatus === 'Scheduled' && (
+          <div className="tournament-overlay">
+            <div className="overlay-content">
+              <h2>Tournament Ready to Start</h2>
+              <p>This tournament is scheduled and ready to begin.</p>
+              <button className="start-tournament-button" onClick={handleStartTournament}>
+                Start Tournament
+              </button>
+            </div>
+          </div>
+        )}
+        
         {tournamentStatus === 'Completed' && (
           <div className="tournament-overlay">
             <div className="overlay-content">
@@ -163,28 +236,37 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
         
         <div className="brackets">
           {winnersMatches.length > 0 && (
-            <BracketView 
+            <Bracket 
               matches={winnersMatches}
-              teams={tournament.teams}
-              title="Winners Bracket"
               allMatches={tournament.matches}
+              teams={tournament.teams}
+              players={[]}
+              title="Winners Bracket"
+              onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
+              onStartMatch={showManagementActions ? handleStartMatch : undefined}
             />
           )}
           {losersMatches.length > 0 && (
-            <BracketView 
+            <Bracket 
               matches={losersMatches}
-              teams={tournament.teams}
-              title="Losers Bracket"
               allMatches={tournament.matches}
+              teams={tournament.teams}
+              players={[]}
+              title="Losers Bracket"
+              onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
+              onStartMatch={showManagementActions ? handleStartMatch : undefined}
             />
           )}
           {championshipMatches.filter(m => m.team1_id && m.team2_id).length > 0 && (
             <div className="championship-section">
-              <BracketView 
+              <Bracket 
                 matches={championshipMatches}
-                teams={tournament.teams}
-                title="🏆 Championship"
                 allMatches={tournament.matches}
+                teams={tournament.teams}
+                players={[]}
+                title="🏆 Championship"
+                onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
+                onStartMatch={showManagementActions ? handleStartMatch : undefined}
               />
             </div>
           )}
@@ -194,4 +276,4 @@ const TournamentView: React.FC<TournamentViewProps> = ({ tournamentId, onBack })
   );
 };
 
-export default TournamentView;
+export default UnifiedTournamentView;
