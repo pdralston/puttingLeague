@@ -37,9 +37,14 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onPlayerAdded }
           setNickname('');
           setDivision('Am');
         }
+      } else {
+        const error = await response.json();
+        const errorMessage = error.errors ? error.errors.join('\n') : (error.error || 'Unknown error');
+        alert(`Error registering player: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Failed to register player:', error);
+      alert('Network error: Failed to register player. Please try again.');
     } finally {
       setLoading(false);
     }

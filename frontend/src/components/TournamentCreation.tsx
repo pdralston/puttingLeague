@@ -88,9 +88,14 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         addPlayer(createdPlayer);
         setNewPlayer({ player_name: '', nickname: '', division: 'Am' });
         setShowNewPlayerForm(false);
+      } else {
+        const error = await response.json();
+        const errorMessage = error.errors ? error.errors.join('\n') : (error.error || 'Unknown error');
+        alert(`Error creating player: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Failed to create player:', error);
+      alert('Network error: Failed to create player. Please try again.');
     }
   };
 
@@ -128,14 +133,22 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         if (matchesResponse.ok) {
           onTournamentCreated();
         } else {
-          alert('Tournament created but failed to generate matches');
+          // Delete the tournament if match generation fails
+          await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          
+          const matchError = await matchesResponse.json();
+          alert(`Failed to generate matches: ${matchError.error || 'Unknown error'}. Tournament has been deleted.`);
         }
       } else {
-        alert('Failed to create tournament');
+        const error = await response.json();
+        alert(`Failed to create tournament: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to create tournament:', error);
-      alert('Failed to create tournament');
+      alert('Network error: Failed to create tournament. Please try again.');
     } finally {
       setLoading(false);
     }

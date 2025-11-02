@@ -75,17 +75,17 @@ def create_players():
     
     for i, player_data in enumerate(players_data):
         if not player_data.get('player_name'):
-            errors.append(f'Player {i+1}: Player name is required')
+            errors.append(f'Player name is required')
             continue
         
         division = player_data.get('division', 'Am')
         if division not in ['Pro', 'Am', 'Junior']:
-            errors.append(f'Player {i+1}: Division must be Pro, Am, or Junior')
+            errors.append(f'Division must be Pro, Am, or Junior')
             continue
         
         existing = RegisteredPlayer.query.filter_by(player_name=player_data['player_name']).first()
         if existing:
-            errors.append(f'Player {i+1}: Player name "{player_data["player_name"]}" already exists')
+            errors.append(f'"{player_data["player_name"]}" already exists')
             continue
         
         player = RegisteredPlayer(
