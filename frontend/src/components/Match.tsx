@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Match as MatchType, Team } from '../types/tournament';
+import { getTeamName, getTeamDisplayName, findTeamById } from '../utils/teamUtils';
 
 interface MatchProps {
   match: MatchType;
@@ -27,47 +28,10 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
   };
 
   const isByeMatch = () => {
-    return match.round_number !== 0
-    && match.round_type != "Championship" 
-    && (match.parent_match_id_one == null || match.parent_match_id_two == null) 
-    && match.team1_id !== null && match.match_status != "Completed"
+    return match.team2_id === null && match.match_status === 'Scheduled';
   };
 
-  const handleAdvanceBye = () => {
-    if (!onScoreMatch || !isByeMatch()) return;
-    
-    // Case 1: Team already seeded, just advance them
-    if (match.team1_id && !match.team2_id) {
-      onScoreMatch(match.match_id, 1, 0);
-    } else if (!match.team1_id && match.team2_id) {
-      onScoreMatch(match.match_id, 0, 1);
-    } 
-    // Case 2: No teams seeded, find the winner from completed feeding match
-    else if (!match.team1_id && !match.team2_id) {
-      const feedingMatches = allMatches.filter(m => 
-        m.winner_advances_to_match_id === match.match_id || 
-        m.loser_advances_to_match_id === match.match_id
-      );
-      
-      const completedFeeding = feedingMatches.find(m => m.match_status === 'Completed');
-      if (completedFeeding && completedFeeding.team1_score !== undefined && completedFeeding.team2_score !== undefined) {
-        // Determine which team advances and score accordingly
-        let advancingTeam;
-        if (completedFeeding.winner_advances_to_match_id === match.match_id) {
-          advancingTeam = completedFeeding.team1_score > completedFeeding.team2_score 
-            ? completedFeeding.team1_id 
-            : completedFeeding.team2_id;
-        } else {
-          advancingTeam = completedFeeding.team1_score < completedFeeding.team2_score 
-            ? completedFeeding.team1_id 
-            : completedFeeding.team2_id;
-        }
-        
-        // Score the match with the advancing team as winner
-        onScoreMatch(match.match_id, 1, 0);
-      }
-    }
-  };
+
   const getWinner = () => {
     if (match.match_status !== 'Completed') {
       return null;
@@ -81,9 +45,9 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
 
   const getTeamDisplay = (teamId?: number, isTeam1: boolean = true) => {
     if (teamId) {
-      const team = teams.find(t => t.team_id === teamId);
-      if (team && team.player1_name) {
-        return team.player2_name ? `${team.player1_name} & ${team.player2_name}` : team.player1_name;
+      const team = findTeamById(teams, teamId);
+      if (team) {
+        return getTeamDisplayName(team);
       }
       return `Team ${teamId}`;
     }
@@ -99,18 +63,25 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     }
     
     if (feedingMatches.length === 1) {
-      // Only one feeding match - this means one slot gets the result, other gets a bye/seed
+      // Only one feeding match - determine which slot gets which team
       const feedingMatch = feedingMatches[0];
       const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
       
-      if (isTeam1) {
-        return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+      // For matches with one team already seeded, the empty slot gets the feeding match result
+      if (match.team1_id && !match.team2_id) {
+        return isTeam1 ? getTeamName(teams, match.team1_id) : `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+      } else if (!match.team1_id && match.team2_id) {
+        return isTeam1 ? `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}` : getTeamName(teams, match.team2_id);
       } else {
-        // Second slot gets a bye or direct seed - check if it's losers bracket
-        if (match.round_type === 'Losers') {
-          return 'Bye/Seed';
+        // Neither team seeded yet
+        if (isTeam1) {
+          return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
         } else {
-          return 'Bye';
+          if (match.round_type === 'Losers') {
+            return 'Bye/Seed';
+          } else {
+            return 'Bye';
+          }
         }
       }
     }
@@ -162,14 +133,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
           ▶ Start
         </button>
       )}
-      {isByeMatch() && onScoreMatch && (
-        <button 
-          className="advance-button" 
-          onClick={handleAdvanceBye}
-        >
-          ⏭ Advance
-        </button>
-      )}
+
       {match.match_status === 'In_Progress' && onScoreMatch && (
         <button 
           className="score-button" 

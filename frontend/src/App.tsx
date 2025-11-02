@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import './App.css';
-import './components/Bracket.css';
+
 import './components/PlayerManager.css';
 import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';
-import './components/TournamentView.css';
+
 import './components/AcePotTracker.css';
 import './components/TournamentCreation.css';
-import TournamentBracket from './components/TournamentBracket';
+import UnifiedTournamentView from './components/UnifiedTournamentView';
 import TournamentDirectory from './components/TournamentDirectory';
-import TournamentView from './components/TournamentView';
+
 import TournamentCreation from './components/TournamentCreation';
 import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
@@ -97,15 +97,17 @@ function App() {
           />
         )}
         {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'view' && (
-          <TournamentView 
+          <UnifiedTournamentView 
             tournamentId={selectedTournament} 
             onBack={handleBackToDirectory}
+            showManagementActions={false}
           />
         )}
         {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'manage' && (
-          <TournamentBracket 
+          <UnifiedTournamentView 
             tournamentId={selectedTournament} 
             onBack={handleBackToDirectory}
+            showManagementActions={true}
           />
         )}
       </main>

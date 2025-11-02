@@ -327,8 +327,10 @@ def get_tournament_teams(tournament_id):
             'team_id': team.team_id,
             'player1_id': team.player1_id,
             'player1_name': player1.player_name if player1 else None,
+            'player1_nickname': player1.nickname if player1 else None,
             'player2_id': team.player2_id,
             'player2_name': player2.player_name if player2 else None,
+            'player2_nickname': player2.nickname if player2 else None,
             'is_ghost_team': team.is_ghost_team,
             'seed_number': team.seed_number,
             'final_place': team.final_place
