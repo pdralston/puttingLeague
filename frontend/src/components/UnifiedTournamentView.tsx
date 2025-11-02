@@ -80,9 +80,13 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
         setTournamentStatus(tournamentData.status);
         setShowCompletionOverlay(tournamentData.status === 'Completed');
+      } else {
+        const error = await response.json();
+        alert(`Error scoring match: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to score match:', error);
+      alert('Network error: Failed to score match. Please try again.');
     }
   };
 
@@ -102,9 +106,13 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      } else {
+        const error = await response.json();
+        alert(`Error starting match: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to start match:', error);
+      alert('Network error: Failed to start match. Please try again.');
     }
   };
 
@@ -121,9 +129,13 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
       if (response.ok) {
         setTournamentStatus('In_Progress');
+      } else {
+        const error = await response.json();
+        alert(`Error starting tournament: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to start tournament:', error);
+      alert('Network error: Failed to start tournament. Please try again.');
     }
   };
 
