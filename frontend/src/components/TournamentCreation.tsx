@@ -44,7 +44,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
     !selectedPlayers.find(p => p.player_id === player.player_id) &&
     (player.player_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (player.nickname && player.nickname.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  ).sort((a, b) => a.player_name.localeCompare(b.player_name));
 
   const addPlayer = (player: Player) => {
     if (!selectedPlayers.find(p => p.player_id === player.player_id)) {
