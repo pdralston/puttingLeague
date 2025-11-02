@@ -208,11 +208,23 @@ main {
   min-height: 100vh;
 }
 
-.brackets {
+.brackets-container {
   display: flex;
   gap: 40px;
   overflow-x: auto;
   padding: 20px 0;
+}
+
+.main-brackets {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  flex: 1;
+}
+
+.championship-section {
+  min-width: 300px;
+  align-self: flex-start;
 }
 
 .bracket-view {
