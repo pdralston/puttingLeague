@@ -1,6 +1,16 @@
 -- DG Putt Database Schema
 -- SQL DDL for creating all tables
 
+-- User authentication
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('Admin', 'Director', 'Viewer') DEFAULT 'Viewer',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Tournament records
 CREATE TABLE tournaments (
     tournament_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -97,16 +107,12 @@ CREATE TABLE matches (
     match_status ENUM('Scheduled', 'In_Progress', 'Completed', 'Pending') DEFAULT 'Pending',
     winner_advances_to_match_id INT NULL,
     loser_advances_to_match_id INT NULL,
-    parent_match_id_one INT NULL,
-    parent_match_id_two INT NULL,
     PRIMARY KEY (tournament_id, match_id),
     FOREIGN KEY (tournament_id) REFERENCES tournaments(tournament_id),
     FOREIGN KEY (team1_id) REFERENCES teams(team_id),
     FOREIGN KEY (team2_id) REFERENCES teams(team_id),
     FOREIGN KEY (tournament_id, winner_advances_to_match_id) REFERENCES matches(tournament_id, match_id),
     FOREIGN KEY (tournament_id, loser_advances_to_match_id) REFERENCES matches(tournament_id, match_id),
-    FOREIGN KEY (tournament_id, parent_match_id_one) REFERENCES matches(tournament_id, match_id),
-    FOREIGN KEY (tournament_id, parent_match_id_two) REFERENCES matches(tournament_id, match_id),
     CHECK (stage_match_number > 0),
     CHECK (match_order > 0),
     CHECK (team1_score >= 0 OR team1_score IS NULL),
@@ -120,3 +126,4 @@ CREATE INDEX idx_tournament_date ON tournaments(tournament_date);
 CREATE INDEX idx_season_year ON season_standings(season_year);
 CREATE INDEX idx_match_tournament ON matches(tournament_id, match_order);
 CREATE INDEX idx_team_tournament ON teams(tournament_id);
+CREATE INDEX idx_username ON users(username);

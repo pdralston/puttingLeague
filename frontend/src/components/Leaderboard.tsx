@@ -17,7 +17,7 @@ const Leaderboard: React.FC = () => {
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/players`);
+      const response = await fetch(`${API_BASE_URL}/api/players`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setPlayers(data);

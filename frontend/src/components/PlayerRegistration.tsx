@@ -21,6 +21,7 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onPlayerAdded }
       const response = await fetch(`${API_BASE_URL}/api/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           player_name: name.trim(),
           nickname: nickname.trim() || null,

@@ -20,7 +20,7 @@ const AcePotTracker: React.FC = () => {
 
   const fetchAcePotEntries = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ace-pot`);
+      const response = await fetch(`${API_BASE_URL}/api/ace-pot`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setEntries(data);
