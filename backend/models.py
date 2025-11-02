@@ -58,6 +58,7 @@ class Tournament(db.Model):
     status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Cancelled'), default='Scheduled')
     total_teams = db.Column(db.Integer)
     ace_pot_payout = db.Column(db.Numeric(10, 2), default=0.00)
+    stations = db.Column(db.Integer, default=6)
 
 class AcePot(db.Model):
     __tablename__ = 'ace_pot'

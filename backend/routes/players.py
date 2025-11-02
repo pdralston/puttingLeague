@@ -26,6 +26,27 @@ def get_player_detail(player_id):
         RegisteredPlayer, TeamHistory.teammate_id == RegisteredPlayer.player_id
     ).filter(TeamHistory.player_id == player_id).all()
     
+    # Get tournament history with undefeated check
+    tournaments_with_undefeated = []
+    for t in tournaments:
+        tournament_obj, registration, team = t
+        won_ace_pot = False
+        
+        if team and team.final_place == 1:
+            # Check if team went undefeated
+            from models import Match
+            team_matches = Match.query.filter_by(tournament_id=tournament_obj.tournament_id).filter(
+                db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
+            ).filter(Match.match_status == 'Completed').filter(Match.team2_id.isnot(None)).all()
+            
+            won_ace_pot = all(
+                (match.team1_id == team.team_id and match.team1_score > match.team2_score) or
+                (match.team2_id == team.team_id and match.team2_score > match.team1_score)
+                for match in team_matches
+            )
+        
+        tournaments_with_undefeated.append((tournament_obj, registration, team, won_ace_pot))
+    
     return jsonify({
         'player_id': player.player_id,
         'player_name': player.player_name,
@@ -38,8 +59,9 @@ def get_player_detail(player_id):
             'tournament_date': t[0].tournament_date.isoformat(),
             'status': t[0].status,
             'bought_ace_pot': t[1].bought_ace_pot,
-            'final_place': t[2].final_place if t[2] else None
-        } for t in tournaments],
+            'final_place': t[2].final_place if t[2] else None,
+            'won_ace_pot': t[3]
+        } for t in tournaments_with_undefeated],
         'teammate_history': [{
             'teammate_id': th[0].teammate_id,
             'teammate_name': th[1].player_name,

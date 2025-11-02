@@ -166,6 +166,25 @@
 .clickable-row:hover {
   background-color: rgba(26, 255, 149, 0.1);
 }
+.tournament-entry {
+  display: grid;
+  grid-template-columns: auto 100px 1fr auto;
+  gap: 15px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #666;
+}
+
+.ace-winner {
+  color: #1AFF95 !important;
+  font-weight: bold;
+  background-color: #003A1F;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #1AFF95;
+  white-space: nowrap;
+}
+
 .player-detail {
   background: #004A2F;
   border-radius: 8px;
@@ -321,31 +340,16 @@
   box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
 }
 
-.division-leader-1st:hover {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 215, 0, 0.1)) !important;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
-}
-
 .division-leader-2nd {
   background: linear-gradient(135deg, rgba(192, 192, 192, 0.15), rgba(192, 192, 192, 0.05)) !important;
   border-left: 4px solid #C0C0C0;
   box-shadow: 0 0 10px rgba(192, 192, 192, 0.3);
 }
 
-.division-leader-2nd:hover {
-  background: linear-gradient(135deg, rgba(192, 192, 192, 0.25), rgba(192, 192, 192, 0.1)) !important;
-  box-shadow: 0 0 15px rgba(192, 192, 192, 0.4);
-}
-
 .division-leader-3rd {
   background: linear-gradient(135deg, rgba(205, 127, 50, 0.15), rgba(205, 127, 50, 0.05)) !important;
   border-left: 4px solid #CD7F32;
   box-shadow: 0 0 8px rgba(205, 127, 50, 0.3);
-}
-
-.division-leader-3rd:hover {
-  background: linear-gradient(135deg, rgba(205, 127, 50, 0.25), rgba(205, 127, 50, 0.1)) !important;
-  box-shadow: 0 0 12px rgba(205, 127, 50, 0.4);
 }
 
 /* Enhanced animations for leaders */

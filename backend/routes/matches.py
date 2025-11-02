@@ -19,14 +19,18 @@ def start_match(tournament_id, match_id):
     if match.match_status != 'Scheduled':
         return jsonify({'error': 'Match is not scheduled'}), 400
     
-    # Find first available station (1-6)
+    # Get tournament to check available stations
+    tournament = Tournament.query.get(tournament_id)
+    max_stations = tournament.stations if tournament else 6
+    
+    # Find first available station using tournament's station count
     occupied_stations = db.session.query(Match.station_assignment).filter(
         Match.tournament_id == tournament_id,
         Match.match_status == 'In_Progress'
     ).all()
     
     occupied = {station[0] for station in occupied_stations if station[0]}
-    available_station = next((i for i in range(1, 7) if i not in occupied), None)
+    available_station = next((i for i in range(1, max_stations + 1) if i not in occupied), None)
     
     if not available_station:
         return jsonify({'error': 'No stations available'}), 400
@@ -261,6 +265,9 @@ def _handle_championship_rescore(match, tournament_id, winner_team_id, loser_tea
 @matches_bp.route('/api/tournaments/<int:tournament_id>/generate-matches', methods=['POST'])
 @require_auth(['Admin', 'Director'])
 def generate_matches(tournament_id):
+    data = request.get_json() or {}
+    stations = data.get('stations', 6)
+    
     tournament = Tournament.query.get(tournament_id)
     if not tournament:
         return jsonify({'error': 'Tournament not found'}), 404
@@ -639,8 +646,12 @@ def _distribute_cash_payouts(tournament_id):
     second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
     
     # Calculate payouts
-    second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
-    first_place_payout = total_payout_pot - second_place_payout
+    if total_payout_pot < 60:
+        second_place_payout = 10 if total_payout_pot > 10 else 0
+        first_place_payout = total_payout_pot - second_place_payout
+    else:
+        second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
+        first_place_payout = total_payout_pot - second_place_payout
     
     # Check if first place went undefeated for ace pot
     ace_pot_payout = 0
@@ -667,6 +678,11 @@ def _distribute_cash_payouts(tournament_id):
                 amount=-ace_pot_payout
             )
             db.session.add(payout_entry)
+    
+    # Update tournament with ace pot payout amount
+    tournament = Tournament.query.get(tournament_id)
+    if tournament:
+        tournament.ace_pot_payout = ace_pot_payout
     
     # Distribute cash to players
     for reg in registrations:

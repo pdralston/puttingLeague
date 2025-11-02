@@ -17,7 +17,8 @@ CREATE TABLE tournaments (
     tournament_date DATE NOT NULL,
     status ENUM('Scheduled', 'In_Progress', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
     total_teams INT,
-    ace_pot_payout DECIMAL(10,2) DEFAULT 0.00
+    ace_pot_payout DECIMAL(10,2) DEFAULT 0.00,
+    stations INT DEFAULT 6
 );
 
 -- Main player registry

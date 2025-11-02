@@ -137,13 +137,18 @@ def create_tournament():
     if len(players) < 2:
         return jsonify({'error': 'At least 2 players required to create tournament'}), 400
     
+    stations = data.get('stations', 6)
+    if not isinstance(stations, int) or stations < 1 or stations > 20:
+        return jsonify({'error': 'Stations must be between 1 and 20'}), 400
+    
     try:
         # Create tournament
         tournament = Tournament(
             tournament_date=tournament_date,
             status='Scheduled',
             total_teams=0,
-            ace_pot_payout=0.00
+            ace_pot_payout=0.00,
+            stations=stations
         )
         
         db.session.add(tournament)

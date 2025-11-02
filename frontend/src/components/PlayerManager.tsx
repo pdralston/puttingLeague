@@ -108,7 +108,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
     setLoadingDetail(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/players/${player.player_id}`, { 
-        method: 'DELETE',
+        method: 'GET',
         credentials: 'include'
       });
       if (response.ok) {
@@ -211,9 +211,9 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
                   playerDetail.tournament_history.map((t: any) => (
                     <div key={t.tournament_id} className="tournament-entry">
                       <span>{t.tournament_date}</span>
+                      {t.won_ace_pot === true ? <span className="ace-winner">🎯 ACE POT</span> : <span></span>}
                       <span>Status: {t.status}</span>
                       {t.final_place && <span>Place: {t.final_place}</span>}
-                      {t.bought_ace_pot && <span>🎯 Ace Pot</span>}
                     </div>
                   ))
                 ) : (

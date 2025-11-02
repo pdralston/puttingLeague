@@ -16,6 +16,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
   showManagementActions = false 
 }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [tournamentData, setTournamentData] = useState<any>(null);
   const [tournamentStatus, setTournamentStatus] = useState<string>('');
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
@@ -28,6 +29,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       fetch(`${API_BASE_URL}/api/ace-pot`, { credentials: 'include' }).then(res => res.json())
     ]).then(([matches, teams, tournamentData, acePotData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+      setTournamentData(tournamentData);
       setTournamentStatus(tournamentData.status);
       setShowCompletionOverlay(tournamentData.status === 'Completed');
       
@@ -78,6 +80,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+        setTournamentData(tournamentData);
         setTournamentStatus(tournamentData.status);
         setShowCompletionOverlay(tournamentData.status === 'Completed');
       } else {
@@ -148,11 +151,19 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
   const calculatePayout = (place: number, totalParticipants: number, isUndefeated: boolean = false) => {
     const totalPot = 5 * totalParticipants;
-    const secondPlace = Math.min(40, totalPot - 40);
-    const firstPlace = totalPot - secondPlace;
+    let secondPlace, firstPlace;
+    
+    if (totalPot < 60) {
+      secondPlace = totalPot > 10 ? 10 : 0;
+      firstPlace = totalPot - secondPlace;
+    } else {
+      secondPlace = Math.min(40, totalPot - 40);
+      firstPlace = totalPot - secondPlace;
+    }
     
     if (place === 1) {
-      return firstPlace + (isUndefeated ? acePotBalance : 0);
+      const acePayout = isUndefeated && tournamentData ? (tournamentData.ace_pot_payout || 0) : 0;
+      return firstPlace + acePayout;
     }
     if (place === 2) return secondPlace;
     return 0;

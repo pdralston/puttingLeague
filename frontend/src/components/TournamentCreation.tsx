@@ -15,6 +15,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([]);
   const [tournamentDate, setTournamentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [stations, setStations] = useState(6);
   const [loading, setLoading] = useState(false);
   const [showNewPlayerForm, setShowNewPlayerForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +114,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         credentials: 'include',
         body: JSON.stringify({
           tournament_date: tournamentDate,
+          stations: stations,
           players: selectedPlayers.map(p => ({
             player_id: p.player_id,
             bought_ace_pot: p.bought_ace_pot
@@ -127,7 +129,8 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
+          credentials: 'include',
+          body: JSON.stringify({ stations: stations })
         });
 
         if (matchesResponse.ok) {
@@ -173,6 +176,17 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
             type="date"
             value={tournamentDate}
             onChange={(e) => setTournamentDate(e.target.value)}
+          />
+        </div>
+
+        <div className="form-section">
+          <label>Number of Stations:</label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={stations}
+            onChange={(e) => setStations(parseInt(e.target.value))}
           />
         </div>
 
