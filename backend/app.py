@@ -9,6 +9,25 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
+def create_admin_user():
+    """Create default admin user if it doesn't exist"""
+    from models import User
+    
+    admin_username = os.getenv('ADMIN_USERNAME', 'admin')
+    admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
+    
+    try:
+        existing_user = User.query.filter_by(username=admin_username).first()
+        if not existing_user:
+            admin_user = User(username=admin_username, role='Admin')
+            admin_user.set_password(admin_password)
+            db.session.add(admin_user)
+            db.session.commit()
+            print(f"Created admin user: {admin_username}")
+    except Exception as e:
+        print(f"Error creating admin user: {e}")
+        db.session.rollback()
+
 # Session configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
@@ -51,7 +70,8 @@ if __name__ == '__main__':
         with app.app_context():
             with db.engine.connect() as conn:
                 conn.execute(db.text('SELECT 1'))
-        print("Database connection successful!")
+            print("Database connection successful!")
+            create_admin_user()
     except Exception as e:
         print(f"Database connection failed: {e}")
     

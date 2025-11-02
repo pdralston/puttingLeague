@@ -8,7 +8,7 @@ class User(db.Model):
     user_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.Enum('Admin', 'Director'), nullable=False)
+    role = db.Column(db.Enum('Admin', 'Director', 'Viewer'), nullable=False, default='Viewer')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_password(self, password):
@@ -98,5 +98,3 @@ class Match(db.Model):
     match_status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Pending'), default='Pending')
     winner_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
     loser_advances_to_match_id = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
-    parent_match_id_one = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)
-    parent_match_id_two = db.Column(db.Integer, db.ForeignKey('matches.match_id'), nullable=True)

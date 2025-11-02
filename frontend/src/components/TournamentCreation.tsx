@@ -30,7 +30,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/players`);
+      const response = await fetch(`${API_BASE_URL}/api/players`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setAvailablePlayers(data);
@@ -77,6 +77,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       const response = await fetch(`${API_BASE_URL}/api/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(newPlayer)
       });
 
@@ -104,6 +105,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       const response = await fetch(`${API_BASE_URL}/api/tournaments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           tournament_date: tournamentDate,
           players: selectedPlayers.map(p => ({
@@ -119,7 +121,8 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         // Generate matches for the tournament
         const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
         });
 
         if (matchesResponse.ok) {

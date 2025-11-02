@@ -310,9 +310,7 @@ def get_tournament_matches(tournament_id):
         'match_status': m.match_status,
         'station_assignment': m.station_assignment,
         'winner_advances_to_match_id': m.winner_advances_to_match_id,
-        'loser_advances_to_match_id': m.loser_advances_to_match_id,
-        'parent_match_id_one': m.parent_match_id_one,
-        'parent_match_id_two': m.parent_match_id_two
+        'loser_advances_to_match_id': m.loser_advances_to_match_id
     } for m in matches])
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/teams', methods=['GET'])

@@ -56,7 +56,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
 
   const fetchPlayers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/players`);
+      const response = await fetch(`${API_BASE_URL}/api/players`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setPlayers(data);
@@ -84,6 +84,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
       const response = await fetch(`${API_BASE_URL}/api/players/${editingPlayer.player_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(editForm)
       });
       
@@ -106,7 +107,10 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
     setSelectedPlayer(player);
     setLoadingDetail(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/players/${player.player_id}`);
+      const response = await fetch(`${API_BASE_URL}/api/players/${player.player_id}`, { 
+        method: 'DELETE',
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setPlayerDetail(data);
@@ -143,6 +147,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
       const response = await fetch(`${API_BASE_URL}/api/players/batch-csv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ csv_data: csvData })
       });
       

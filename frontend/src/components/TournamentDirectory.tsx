@@ -30,7 +30,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
 
   const fetchTournaments = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tournaments`);
+      const response = await fetch(`${API_BASE_URL}/api/tournaments`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setTournaments(data);
@@ -50,7 +50,8 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
 
       if (response.ok) {

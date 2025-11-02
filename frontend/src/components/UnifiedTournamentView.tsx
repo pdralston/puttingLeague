@@ -22,10 +22,10 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/ace-pot`).then(res => res.json())
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json()),
+      fetch(`${API_BASE_URL}/api/ace-pot`, { credentials: 'include' }).then(res => res.json())
     ]).then(([matches, teams, tournamentData, acePotData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentStatus(tournamentData.status);
@@ -67,14 +67,15 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ team1_score: team1Score, team2_score: team2Score })
       });
       
       if (response.ok) {
         const [matches, teams, tournamentData] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
-          fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
         setTournamentStatus(tournamentData.status);
@@ -91,13 +92,14 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     try {
       const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
       
       if (response.ok) {
         const [matches, teams] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       }
@@ -113,6 +115,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status: 'In_Progress' })
       });
 
