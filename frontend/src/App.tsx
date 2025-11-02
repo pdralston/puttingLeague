@@ -4,16 +4,17 @@ import './App.css';
 import './components/PlayerManager.css';
 import './components/Leaderboard.css';
 import './components/TournamentDirectory.css';
-
 import './components/AcePotTracker.css';
 import './components/TournamentCreation.css';
+import './components/Admin.css';
+
 import UnifiedTournamentView from './components/UnifiedTournamentView';
 import TournamentDirectory from './components/TournamentDirectory';
-
 import TournamentCreation from './components/TournamentCreation';
 import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
 import AcePotTracker from './components/AcePotTracker';
+import Admin from './components/Admin';
 import Login from './components/Login';
 import { API_BASE_URL } from './config/api';
 
@@ -24,7 +25,7 @@ interface User {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot'>('players');
+  const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot' | 'admin'>('players');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
   const [playerManagerKey, setPlayerManagerKey] = useState(0);
@@ -121,6 +122,14 @@ function App() {
           >
             Ace Pot
           </button>
+          {(user.role === 'Admin' || user.role === 'Director') && (
+            <button 
+              className={activeTab === 'admin' ? 'active' : ''}
+              onClick={() => setActiveTab('admin')}
+            >
+              Admin
+            </button>
+          )}
           <div className="auth-section">
             {user.role === 'Viewer' ? (
               <button className="login-button" onClick={() => setShowLogin(true)}>
@@ -143,6 +152,9 @@ function App() {
         {activeTab === 'players' && <PlayerManager key={playerManagerKey} userRole={user.role} />}
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
+        {activeTab === 'admin' && (user.role === 'Admin' || user.role === 'Director') && (
+          <Admin currentUser={user} />
+        )}
         {activeTab === 'tournaments' && !selectedTournament && tournamentMode !== 'create' && (
           <TournamentDirectory 
             onTournamentSelect={handleTournamentSelect}

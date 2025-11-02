@@ -88,6 +88,55 @@ def create_user():
         'role': user.role
     }), 201
 
+@auth_bp.route('/api/auth/users', methods=['GET'])
+@require_auth(['Admin'])
+def get_users():
+    users = User.query.all()
+    return jsonify([{
+        'user_id': u.user_id,
+        'username': u.username,
+        'role': u.role,
+        'created_at': u.created_at.isoformat()
+    } for u in users])
+
+@auth_bp.route('/api/auth/users/<int:user_id>', methods=['PUT'])
+@require_auth(['Admin', 'Director'])
+def update_user(user_id):
+    from flask import session
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Directors can only edit themselves
+    if session.get('role') == 'Director' and session.get('user_id') != user_id:
+        return jsonify({'error': 'Directors can only edit their own profile'}), 403
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    if 'username' in data:
+        # Check if username already exists
+        existing = User.query.filter(User.username == data['username'], User.user_id != user_id).first()
+        if existing:
+            return jsonify({'error': 'Username already exists'}), 400
+        user.username = data['username']
+    
+    if 'password' in data and data['password']:
+        user.set_password(data['password'])
+    
+    # Only admins can change roles
+    if 'role' in data and session.get('role') == 'Admin':
+        if data['role'] in ['Admin', 'Director']:
+            user.role = data['role']
+    
+    db.session.commit()
+    return jsonify({
+        'user_id': user.user_id,
+        'username': user.username,
+        'role': user.role
+    })
+
 @auth_bp.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
 @require_auth(['Admin'])
 def delete_user(user_id):
