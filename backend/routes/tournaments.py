@@ -3,6 +3,7 @@ from datetime import datetime
 import random
 from database import db
 from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot, Team, Match
+from routes.auth import require_auth
 
 tournaments_bp = Blueprint('tournaments', __name__)
 
@@ -120,6 +121,7 @@ def get_tournaments():
             return jsonify({'error': 'Failed to fetch tournaments'}), 500
 
 @tournaments_bp.route('/api/tournaments', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def create_tournament():
     data = request.get_json()
     
@@ -212,6 +214,7 @@ def create_tournament():
         return jsonify({'error': 'Failed to create tournament'}), 500
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/register-players', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def register_players_for_tournament(tournament_id):
     if tournament_id <= 0:
         return jsonify({'error': 'Invalid tournament ID'}), 400
@@ -337,6 +340,7 @@ def get_tournament_teams(tournament_id):
     return jsonify(result)
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>/status', methods=['PUT'])
+@require_auth(['Admin', 'Director'])
 def update_tournament_status(tournament_id):
     data = request.get_json()
     
@@ -360,6 +364,7 @@ def update_tournament_status(tournament_id):
     })
 
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>', methods=['DELETE'])
+@require_auth(['Admin'])
 def delete_tournament(tournament_id):
     try:
         # Clean up teammate history, seasonal points, and cash for any tournament

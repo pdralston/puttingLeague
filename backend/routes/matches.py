@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from database import db
 from models import Tournament, Team, Match
+from routes.auth import require_auth
 from sqlalchemy import text
 from typing import List
 import math
@@ -9,6 +10,7 @@ from decimal import Decimal
 matches_bp = Blueprint('matches', __name__)
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/start', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def start_match(tournament_id, match_id):
     match = Match.query.filter_by(tournament_id=tournament_id, match_id=match_id).first()
     if not match:
@@ -44,6 +46,7 @@ def start_match(tournament_id, match_id):
         return jsonify({'error': str(e)}), 500
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/score', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def score_match(tournament_id, match_id):
     data = request.get_json()
     
@@ -256,6 +259,7 @@ def _handle_championship_rescore(match, tournament_id, winner_team_id, loser_tea
             db.session.add(final_match)
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/generate-matches', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def generate_matches(tournament_id):
     tournament = Tournament.query.get(tournament_id)
     if not tournament:
@@ -752,6 +756,7 @@ def _team_is_undefeated(tournament_id, team_id):
     return True
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/create-championship', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def create_championship_round(tournament_id):
     tournament = Tournament.query.get(tournament_id)
     if not tournament:
