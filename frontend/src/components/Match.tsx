@@ -126,24 +126,18 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
         </div>
       )}
       {match.match_status === 'Scheduled' && onStartMatch && !isByeMatch() && (
-        <button 
-          className="start-button" 
-          onClick={() => onStartMatch(match.match_id)}
-        >
+        <div className="start-overlay" onClick={() => onStartMatch(match.match_id)}>
           ▶ Start
-        </button>
+        </div>
       )}
 
       {match.match_status === 'In_Progress' && onScoreMatch && (
-        <button 
-          className="score-button" 
-          onClick={() => {
-            console.log('Score button clicked for match', match.match_id);
-            setShowScorePopup(true);
-          }}
-        >
+        <div className="score-overlay" onClick={() => {
+          console.log('Score overlay clicked for match', match.match_id);
+          setShowScorePopup(true);
+        }}>
           📊 Score
-        </button>
+        </div>
       )}
 
       {match.match_status === 'Completed' && onScoreMatch && (

@@ -73,6 +73,10 @@ def score_match(tournament_id, match_id):
     # Handle post-match processing
     _handle_post_match_processing(match, tournament_id, winner_team_id, loser_team_id)
     
+    # Handle championship match rescoring if this is a rescore
+    if is_rescore and match.round_type == 'Championship' and match.round_number == 0:
+        _handle_championship_rescore(match, tournament_id, winner_team_id, loser_team_id, is_rescore=True)
+    
     try:
         db.session.commit()
         return jsonify({
@@ -86,6 +90,11 @@ def score_match(tournament_id, match_id):
             'rollbacks': rollback_results
         })
     except Exception as e:
+        print(f"ERROR in score_match: {str(e)}")
+        print(f"Match ID: {match_id}, Tournament ID: {tournament_id}")
+        print(f"Match type: {match.round_type}, Round: {match.round_number}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
@@ -206,6 +215,45 @@ def _handle_post_match_processing(match, tournament_id, winner_team_id, loser_te
             tournament = Tournament.query.get(tournament_id)
             tournament.status = 'Completed'
             _process_tournament_completion(tournament_id)
+
+def _handle_championship_rescore(match, tournament_id, winner_team_id, loser_team_id, is_rescore=False):
+    """Handle creation/removal of second championship match based on first championship result"""
+    # Only run this logic during actual rescores, not initial scoring
+    if not is_rescore:
+        return
+        
+    # Check if second championship match exists
+    second_championship = Match.query.filter_by(
+        tournament_id=tournament_id,
+        round_type='Championship',
+        round_number=1
+    ).first()
+    
+    # If WB winner (team1) won, remove second championship match if it exists
+    if winner_team_id == match.team1_id:
+        if second_championship:
+            db.session.delete(second_championship)
+    # If LB winner (team2) won, create second championship match if it doesn't exist
+    else:
+        if not second_championship:
+            # Get the highest match_id to continue numbering
+            last_match = Match.query.filter_by(tournament_id=tournament_id).order_by(Match.match_id.desc()).first()
+            next_match_id = (last_match.match_id + 1) if last_match else 1
+            
+            final_match = Match(
+                tournament_id=tournament_id,
+                match_id=next_match_id,
+                stage_type='Finals',
+                round_type='Championship',
+                round_number=1,
+                position_in_round=0,
+                stage_match_number=next_match_id,
+                match_order=next_match_id,
+                team1_id=match.team1_id,  # WB winner gets another chance
+                team2_id=match.team2_id,  # LB winner
+                match_status='Scheduled'
+            )
+            db.session.add(final_match)
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/generate-matches', methods=['POST'])
 def generate_matches(tournament_id):

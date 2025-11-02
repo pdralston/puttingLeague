@@ -19,6 +19,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot'>('players');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
+  const [playerManagerKey, setPlayerManagerKey] = useState(0);
 
   const handleTournamentSelect = (tournamentId: number) => {
     setSelectedTournament(tournamentId);
@@ -51,7 +52,13 @@ function App() {
         <nav>
           <button 
             className={activeTab === 'players' ? 'active' : ''}
-            onClick={() => setActiveTab('players')}
+            onClick={() => {
+              if (activeTab === 'players') {
+                setPlayerManagerKey(prev => prev + 1);
+              } else {
+                setActiveTab('players');
+              }
+            }}
           >
             Players
           </button>
@@ -80,7 +87,7 @@ function App() {
         </nav>
       </header>
       <main>
-        {activeTab === 'players' && <PlayerManager />}
+        {activeTab === 'players' && <PlayerManager key={playerManagerKey} />}
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
         {activeTab === 'tournaments' && !selectedTournament && tournamentMode !== 'create' && (

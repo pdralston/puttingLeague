@@ -118,6 +118,38 @@ def create_players():
     
     return jsonify(result), 201
 
+@players_bp.route('/api/players/<int:player_id>', methods=['PUT'])
+def update_player(player_id):
+    player = RegisteredPlayer.query.get(player_id)
+    if not player:
+        return jsonify({'error': 'Player not found'}), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # Update allowed fields
+    if 'player_name' in data:
+        player.player_name = data['player_name']
+    if 'nickname' in data:
+        player.nickname = data['nickname']
+    if 'division' in data:
+        player.division = data['division']
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            'player_id': player.player_id,
+            'player_name': player.player_name,
+            'nickname': player.nickname,
+            'division': player.division,
+            'seasonal_points': player.seasonal_points,
+            'seasonal_cash': float(player.seasonal_cash)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @players_bp.route('/api/players/batch-csv', methods=['POST'])
 def create_players_csv():
     if 'csv_data' not in request.json:

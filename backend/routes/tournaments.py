@@ -364,11 +364,12 @@ def update_tournament_status(tournament_id):
 @tournaments_bp.route('/api/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
-        # Clean up teammate history and seasonal points before deleting
+        # Clean up teammate history, seasonal points, and cash for any tournament
         tournament = Tournament.query.get(tournament_id)
-        if tournament and tournament.status == 'Completed':
+        if tournament:
             _cleanup_teammate_history(tournament_id)
             _adjust_seasonal_points(tournament_id, reverse=True)
+            _adjust_seasonal_cash(tournament_id, reverse=True)
         
         # Delete in dependency order
         Match.query.filter_by(tournament_id=tournament_id).delete()
@@ -376,7 +377,6 @@ def delete_tournament(tournament_id):
         TournamentRegistration.query.filter_by(tournament_id=tournament_id).delete()
         AcePot.query.filter_by(tournament_id=tournament_id).delete()
         
-        tournament = Tournament.query.get(tournament_id)
         if tournament:
             db.session.delete(tournament)
             db.session.commit()
@@ -408,6 +408,11 @@ def _adjust_seasonal_points(tournament_id, reverse=False):
     """Adjust seasonal points for tournament (add or subtract)"""
     from models import RegisteredPlayer, TournamentRegistration, Team, Match
     
+    # Only adjust points for completed tournaments (where points were actually awarded)
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament or tournament.status != 'Completed':
+        return
+    
     registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
     
     for reg in registrations:
@@ -422,7 +427,7 @@ def _adjust_seasonal_points(tournament_id, reverse=False):
             total_points = participation_points + match_wins + top_4_bonus + undefeated_bonus
             
             if reverse:
-                player.seasonal_points -= total_points
+                player.seasonal_points = max(0, player.seasonal_points - total_points)
             else:
                 player.seasonal_points += total_points
 
@@ -476,3 +481,59 @@ def _is_undefeated_for_deletion(tournament_id, player_id):
                 return False
     
     return True
+
+def _adjust_seasonal_cash(tournament_id, reverse=False):
+    """Adjust seasonal cash for tournament (add or subtract)"""
+    from models import RegisteredPlayer, TournamentRegistration, Team
+    from decimal import Decimal
+    
+    # Only adjust cash for completed tournaments (where payouts were actually made)
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament or tournament.status != 'Completed':
+        return
+    
+    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    total_participants = len(registrations)
+    total_payout_pot = 5 * total_participants
+    
+    # Calculate payouts
+    second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
+    first_place_payout = total_payout_pot - second_place_payout
+    
+    # Find 1st and 2nd place teams
+    first_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=1).first()
+    second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
+    
+    # Check if first place went undefeated for ace pot
+    ace_pot_payout = 0
+    if first_place_team and _is_undefeated_for_deletion(tournament_id, first_place_team.player1_id):
+        # Get ace pot balance at time of tournament (approximate)
+        ace_pot_entries = AcePot.query.filter_by(tournament_id=tournament_id).all()
+        for entry in ace_pot_entries:
+            if entry.amount < 0:  # This was a payout
+                ace_pot_payout = abs(entry.amount)
+                break
+    
+    first_place_payout += ace_pot_payout
+    
+    # Adjust cash for players
+    for reg in registrations:
+        player = RegisteredPlayer.query.get(reg.player_id)
+        if player:
+            player_team = Team.query.filter_by(tournament_id=tournament_id).filter(
+                db.or_(Team.player1_id == reg.player_id, Team.player2_id == reg.player_id)
+            ).first()
+            
+            if player_team:
+                teammates_count = 2 if player_team.player2_id and not player_team.is_ghost_team else 1
+                cash_adjustment = Decimal('0')
+                
+                if player_team.final_place == 1:
+                    cash_adjustment = Decimal(str(first_place_payout / teammates_count))
+                elif player_team.final_place == 2:
+                    cash_adjustment = Decimal(str(second_place_payout / teammates_count))
+                
+                if reverse:
+                    player.seasonal_cash = max(Decimal('0'), player.seasonal_cash - cash_adjustment)
+                else:
+                    player.seasonal_cash += cash_adjustment
