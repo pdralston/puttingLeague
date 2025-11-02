@@ -12,9 +12,15 @@ interface TournamentDirectoryProps {
   onTournamentSelect: (tournamentId: number) => void;
   onTournamentManage: (tournamentId: number) => void;
   onCreateTournament: () => void;
+  userRole?: string;
 }
 
-const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentSelect, onTournamentManage, onCreateTournament }) => {
+const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ 
+  onTournamentSelect, 
+  onTournamentManage, 
+  onCreateTournament,
+  userRole = 'Viewer'
+}) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,9 +70,11 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
     <div className="tournament-directory">
       <div className="page-header">
         <h2>Tournaments</h2>
-        <button className="create-tournament-button" onClick={onCreateTournament}>
-          Create Tournament
-        </button>
+        {(userRole === 'Admin' || userRole === 'Director') && (
+          <button className="create-tournament-button" onClick={onCreateTournament}>
+            Create Tournament
+          </button>
+        )}
       </div>
       
       <div className="table-container">
@@ -93,18 +101,22 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({ onTournamentS
                     >
                       View
                     </button>
-                    <button 
-                      className="manage-button"
-                      onClick={() => onTournamentManage(tournament.tournament_id)}
-                    >
-                      Manage
-                    </button>
-                    <button 
-                      className="delete-button"
-                      onClick={(e) => handleDelete(tournament.tournament_id, e)}
-                    >
-                      Delete
-                    </button>
+                    {(userRole === 'Admin' || userRole === 'Director') && (
+                      <button 
+                        className="manage-button"
+                        onClick={() => onTournamentManage(tournament.tournament_id)}
+                      >
+                        Manage
+                      </button>
+                    )}
+                    {userRole === 'Admin' && (
+                      <button 
+                        className="delete-button"
+                        onClick={(e) => handleDelete(tournament.tournament_id, e)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

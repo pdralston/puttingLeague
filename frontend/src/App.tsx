@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 import './components/PlayerManager.css';
@@ -14,17 +14,53 @@ import TournamentCreation from './components/TournamentCreation';
 import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
 import AcePotTracker from './components/AcePotTracker';
+import Login from './components/Login';
+import { API_BASE_URL } from './config/api';
+
+interface User {
+  user_id: number;
+  username: string;
+  role: string;
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot'>('players');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
   const [playerManagerKey, setPlayerManagerKey] = useState(0);
+  const [user, setUser] = useState<User>({ user_id: 0, username: 'Viewer', role: 'Viewer' });
+  const [showLogin, setShowLogin] = useState(false);
 
   const handleTournamentSelect = (tournamentId: number) => {
     setSelectedTournament(tournamentId);
     setTournamentMode('view');
   };
+
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    setShowLogin(false);
+  };
+
+  const handleCancelLogin = () => {
+    setShowLogin(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    setUser({ user_id: 0, username: 'Viewer', role: 'Viewer' });
+    setActiveTab('players');
+    setSelectedTournament(null);
+    setTournamentMode('view');
+  };
+
+  const canManageTournaments = () => user.role === 'Admin' || user.role === 'Director';
 
   const handleTournamentManage = (tournamentId: number) => {
     setSelectedTournament(tournamentId);
@@ -47,6 +83,7 @@ function App() {
 
   return (
     <div className="App">
+      {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
       <header className="App-header">
         <h1>DG Putt</h1>
         <nav>
@@ -84,10 +121,26 @@ function App() {
           >
             Ace Pot
           </button>
+          <div className="auth-section">
+            {user.role === 'Viewer' ? (
+              <button className="login-button" onClick={() => setShowLogin(true)}>
+                Login
+              </button>
+            ) : (
+              <button className="logout-button" onClick={handleLogout}>
+                Logout
+              </button>
+            )}
+            {user.role === 'Viewer' ? (
+              <></>
+            ) : (
+              <span className="user-info">{user.username}</span>
+            )}
+          </div>
         </nav>
       </header>
       <main>
-        {activeTab === 'players' && <PlayerManager key={playerManagerKey} />}
+        {activeTab === 'players' && <PlayerManager key={playerManagerKey} userRole={user.role} />}
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
         {activeTab === 'tournaments' && !selectedTournament && tournamentMode !== 'create' && (
@@ -95,6 +148,7 @@ function App() {
             onTournamentSelect={handleTournamentSelect}
             onTournamentManage={handleTournamentManage}
             onCreateTournament={handleCreateTournament}
+            userRole={user.role}
           />
         )}
         {activeTab === 'tournaments' && tournamentMode === 'create' && (

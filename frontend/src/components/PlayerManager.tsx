@@ -4,7 +4,11 @@ import PlayerList from './PlayerList';
 import { Player } from '../types/player';
 import { API_BASE_URL } from '../config/api';
 
-const PlayerManager: React.FC = () => {
+interface PlayerManagerProps {
+  userRole?: string;
+}
+
+const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -240,20 +244,22 @@ const PlayerManager: React.FC = () => {
     <div className="player-manager">
       <div className="page-header">
         <h2>Players</h2>
-        <div className="header-buttons">
-          <button 
-            className="add-button"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? 'Cancel' : 'Add Player'}
-          </button>
-          <button 
-            className="add-button"
-            onClick={() => setShowBulkRegister(!showBulkRegister)}
-          >
-            Add Players
-          </button>
-        </div>
+        {(userRole === 'Admin' || userRole === 'Director') && (
+          <div className="header-buttons">
+            <button 
+              className="add-button"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              {showAddForm ? 'Cancel' : 'Add Player'}
+            </button>
+            <button 
+              className="add-button"
+              onClick={() => setShowBulkRegister(!showBulkRegister)}
+            >
+              Add Players
+            </button>
+          </div>
+        )}
       </div>
       
       {showAddForm && (
@@ -304,7 +310,7 @@ const PlayerManager: React.FC = () => {
       <PlayerList 
         players={filteredPlayers} 
         onPlayerClick={handlePlayerClick}
-        onEditPlayer={handleEditPlayer}
+        onEditPlayer={(userRole === 'Admin' || userRole === 'Director') ? handleEditPlayer : undefined}
       />
       
       {editingPlayer && (
