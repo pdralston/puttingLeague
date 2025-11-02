@@ -306,6 +306,12 @@ def generate_matches(tournament_id):
     for bye_match in bye_matches_to_remove:
         matches.remove(bye_match)
     
+    # Set match_order for all non-Championship matches
+    non_championship_matches = [m for m in matches if m.round_type != 'Championship']
+    non_championship_matches.sort(key=lambda m: (m.round_number, m.round_type == 'Losers', m.match_id))
+    for i, match in enumerate(non_championship_matches, 1):
+        match.match_order = i
+    
     # Single database transaction
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
     db.session.add_all(matches)
