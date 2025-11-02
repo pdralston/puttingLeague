@@ -71,11 +71,14 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       });
       
       if (response.ok) {
-        const [matches, teams] = await Promise.all([
+        const [matches, teams, tournamentData] = await Promise.all([
           fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`).then(res => res.json()),
-          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json())
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`).then(res => res.json())
         ]);
         setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+        setTournamentStatus(tournamentData.status);
+        setShowCompletionOverlay(tournamentData.status === 'Completed');
       }
     } catch (error) {
       console.error('Failed to score match:', error);
@@ -245,29 +248,31 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           </div>
         )}
         
-        <div className="brackets">
-          {winnersMatches.length > 0 && (
-            <Bracket 
-              matches={winnersMatches}
-              allMatches={tournament.matches}
-              teams={tournament.teams}
-              players={[]}
-              title="Winners Bracket"
-              onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
-              onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
-            />
-          )}
-          {losersMatches.length > 0 && (
-            <Bracket 
-              matches={losersMatches}
-              allMatches={tournament.matches}
-              teams={tournament.teams}
-              players={[]}
-              title="Losers Bracket"
-              onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
-              onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
-            />
-          )}
+        <div className="brackets-container">
+          <div className="main-brackets">
+            {winnersMatches.length > 0 && (
+              <Bracket 
+                matches={winnersMatches}
+                allMatches={tournament.matches}
+                teams={tournament.teams}
+                players={[]}
+                title="Winners Bracket"
+                onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+                onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+              />
+            )}
+            {losersMatches.length > 0 && (
+              <Bracket 
+                matches={losersMatches}
+                allMatches={tournament.matches}
+                teams={tournament.teams}
+                players={[]}
+                title="Losers Bracket"
+                onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+                onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+              />
+            )}
+          </div>
           {championshipMatches.filter(m => m.team1_id && m.team2_id).length > 0 && (
             <div className="championship-section">
               <Bracket 
