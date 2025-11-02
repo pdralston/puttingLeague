@@ -6,6 +6,8 @@
 
 .admin-actions {
   margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
 }
 
 .create-button {
@@ -20,6 +22,20 @@
 
 .create-button:hover {
   background-color: #16e085;
+}
+
+.reset-button {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.reset-button:hover {
+  background-color: #cc3333;
 }
 
 .user-form {

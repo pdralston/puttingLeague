@@ -137,6 +137,26 @@ def update_user(user_id):
         'role': user.role
     })
 
+@auth_bp.route('/api/auth/reset-data', methods=['DELETE'])
+@require_auth(['Admin'])
+def reset_all_data():
+    try:
+        # Delete in order to respect foreign key constraints
+        db.session.execute(db.text('DELETE FROM matches'))
+        db.session.execute(db.text('DELETE FROM teams'))
+        db.session.execute(db.text('DELETE FROM tournament_registrations'))
+        db.session.execute(db.text('DELETE FROM ace_pot'))
+        db.session.execute(db.text('DELETE FROM tournaments'))
+        db.session.execute(db.text('DELETE FROM team_history'))
+        db.session.execute(db.text('DELETE FROM season_standings'))
+        db.session.execute(db.text('DELETE FROM registered_players'))
+        
+        db.session.commit()
+        return jsonify({'message': 'All data reset successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @auth_bp.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
 @require_auth(['Admin'])
 def delete_user(user_id):

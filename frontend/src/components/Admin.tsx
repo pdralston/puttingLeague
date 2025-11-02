@@ -111,6 +111,30 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
     setFormData({ username: user.username, password: '', role: user.role });
   };
 
+  const handleResetData = async () => {
+    const confirmation = window.prompt(
+      'This will DELETE ALL tournament data, players, matches, and ace pot records. Type "RESET" to confirm:'
+    );
+    
+    if (confirmation !== 'RESET') return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/reset-data`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        alert('All data has been reset successfully');
+      } else {
+        const error = await response.json();
+        alert(error.error);
+      }
+    } catch (error) {
+      console.error('Failed to reset data:', error);
+    }
+  };
+
   const canEditUser = (user: User) => {
     return currentUser.role === 'Admin' || user.user_id === currentUser.user_id;
   };
@@ -123,6 +147,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
         <div className="admin-actions">
           <button onClick={() => setShowCreateForm(true)} className="create-button">
             Create New User
+          </button>
+          <button onClick={handleResetData} className="reset-button">
+            Reset All Data
           </button>
         </div>
       )}
