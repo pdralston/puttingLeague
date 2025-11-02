@@ -51,39 +51,95 @@ def score_match(tournament_id, match_id):
     if not match:
         return jsonify({'error': 'Match not found'}), 404
     
-    print(f"Debug - Match {match_id}: status={match.match_status}, team1_id={match.team1_id}, team2_id={match.team2_id}")
+    # Validate match can be scored
+    validation_error = _validate_match_scoring(match, data)
+    if validation_error:
+        return validation_error
     
-    # Allow advancement for bye matches (Pending/Scheduled/Completed) or regular matches (In_Progress)
+    # Check for rescore and store old results
+    is_rescore, old_winner_id, old_loser_id = _check_rescore_status(match)
+    
+    # Process the match scoring
+    winner_team_id, loser_team_id = _process_match_scoring(match, data)
+    
+    # Handle rollbacks if needed
+    rollback_results = []
+    if is_rescore and old_winner_id and (old_winner_id != winner_team_id):
+        rollback_results = _rollback_match_advancements(match, old_winner_id, old_loser_id)
+    
+    # Advance teams to next matches
+    advancement_results = _advance_teams(match, tournament_id, winner_team_id, loser_team_id)
+    
+    # Handle post-match processing
+    _handle_post_match_processing(match, tournament_id, winner_team_id, loser_team_id)
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            'match_id': match.match_id,
+            'status': match.match_status,
+            'team1_score': match.team1_score,
+            'team2_score': match.team2_score,
+            'winner_team_id': winner_team_id,
+            'is_rescore': is_rescore,
+            'advancements': advancement_results,
+            'rollbacks': rollback_results
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+def _validate_match_scoring(match, data):
+    """Validate that a match can be scored"""
     if match.team2_id is None:
-        # Bye match - allow if Pending, Scheduled, or Completed
-        if match.match_status not in ['Pending', 'Scheduled']:
-            print(f"Debug - Bye match status check failed: {match.match_status}")
+        if match.match_status not in ['Pending', 'Scheduled', 'Completed']:
             return jsonify({'error': f'Bye match cannot be advanced (status: {match.match_status})'}), 400
     else:
-        # Regular match - must be In_Progress
-        if match.match_status != 'In_Progress':
-            print(f"Debug - Regular match status check failed: {match.match_status}")
-            return jsonify({'error': 'Match is not in progress'}), 400
+        if match.match_status not in ['In_Progress', 'Completed']:
+            return jsonify({'error': 'Match is not in progress or completed'}), 400
+        
+        if not data or 'team1_score' not in data or 'team2_score' not in data:
+            return jsonify({'error': 'Missing score data'}), 400
+        
+        try:
+            team1_score = int(data['team1_score'])
+            team2_score = int(data['team2_score'])
+            if team1_score < 0 or team2_score < 0:
+                return jsonify({'error': 'Scores must be non-negative'}), 400
+            if team1_score == team2_score:
+                return jsonify({'error': 'Matches cannot end in a tie'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid score format'}), 400
     
-    # Handle bye matches (only one team)
+    return None
+
+def _check_rescore_status(match):
+    """Check if this is a rescore and return old results"""
+    is_rescore = match.match_status == 'Completed'
+    old_winner_id = None
+    old_loser_id = None
+    
+    if is_rescore and match.team1_score is not None and match.team2_score is not None:
+        old_winner_id = match.team1_id if match.team1_score > match.team2_score else match.team2_id
+        old_loser_id = match.team2_id if match.team1_score > match.team2_score else match.team1_id
+    
+    return is_rescore, old_winner_id, old_loser_id
+
+def _process_match_scoring(match, data):
+    """Process the actual match scoring and return winner/loser"""
     if match.team2_id is None:
-        print(f"Debug - Processing bye match {match_id}, team1_id: {match.team1_id}")
+        # Bye match
         if not match.team1_id:
-            return jsonify({'error': 'No team to advance'}), 400
+            raise ValueError('No team to advance')
         
         match.team1_score = 1
         match.team2_score = 0
         match.match_status = 'Completed'
         match.station_assignment = None
         
-        winner_team_id = match.team1_id
-        loser_team_id = None
-        print(f"Debug - Bye match completed, winner: {winner_team_id}")
+        return match.team1_id, None
     else:
-        # Regular match with two teams
-        if not data or 'team1_score' not in data or 'team2_score' not in data:
-            return jsonify({'error': 'Missing score data'}), 400
-        
+        # Regular match
         team1_score = int(data['team1_score'])
         team2_score = int(data['team2_score'])
         
@@ -92,27 +148,25 @@ def score_match(tournament_id, match_id):
         match.match_status = 'Completed'
         match.station_assignment = None
         
-        # Determine winner and loser
         if team1_score > team2_score:
-            winner_team_id = match.team1_id
-            loser_team_id = match.team2_id
+            return match.team1_id, match.team2_id
         else:
-            winner_team_id = match.team2_id
-            loser_team_id = match.team1_id
+            return match.team2_id, match.team1_id
+
+def _advance_teams(match, tournament_id, winner_team_id, loser_team_id):
+    """Advance teams to next matches and return advancement results"""
+    advancement_results = []
     
-    # Advance teams to next matches
     if match.winner_advances_to_match_id and winner_team_id:
-        print(f"Debug - Advancing winner {winner_team_id} to match {match.winner_advances_to_match_id}")
         next_match = Match.query.filter_by(tournament_id=tournament_id, match_id=match.winner_advances_to_match_id).first()
         if next_match:
             if not next_match.team1_id:
                 next_match.team1_id = winner_team_id
-                print(f"Debug - Set team1_id to {winner_team_id} in match {next_match.match_id}")
+                advancement_results.append({'team_id': winner_team_id, 'type': 'winner', 'advanced_to_match_id': next_match.match_id})
             elif not next_match.team2_id:
                 next_match.team2_id = winner_team_id
-                print(f"Debug - Set team2_id to {winner_team_id} in match {next_match.match_id}")
+                advancement_results.append({'team_id': winner_team_id, 'type': 'winner', 'advanced_to_match_id': next_match.match_id})
             
-            # Update status to Scheduled if both teams are now assigned
             if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
                 next_match.match_status = 'Scheduled'
     
@@ -121,23 +175,23 @@ def score_match(tournament_id, match_id):
         if next_match:
             if not next_match.team1_id:
                 next_match.team1_id = loser_team_id
+                advancement_results.append({'team_id': loser_team_id, 'type': 'loser', 'advanced_to_match_id': next_match.match_id})
             elif not next_match.team2_id:
                 next_match.team2_id = loser_team_id
+                advancement_results.append({'team_id': loser_team_id, 'type': 'loser', 'advanced_to_match_id': next_match.match_id})
             
-            # Update status to Scheduled if both teams are now assigned
             if next_match.team1_id and next_match.team2_id and next_match.match_status == 'Pending':
                 next_match.match_status = 'Scheduled'
     
-    # Auto-advance matches with only one team (bye matches)
+    return advancement_results
+
+def _handle_post_match_processing(match, tournament_id, winner_team_id, loser_team_id):
+    """Handle auto-advancement, championship completion, and tournament completion"""
     _auto_advance_byes(tournament_id)
     
-    # Handle championship match completion
-    print(f"Debug - Match {match_id} completed: round_type={match.round_type}")
     if match.round_type == 'Championship':
-        print(f"Debug - Processing championship completion")
         _handle_championship_completion(match, winner_team_id, loser_team_id)
     else:
-        # Check if this completes the tournament (no more matches to play)
         remaining_matches = Match.query.filter_by(
             tournament_id=tournament_id, 
             match_status='Pending'
@@ -148,27 +202,10 @@ def score_match(tournament_id, match_id):
             match_status='Scheduled'
         ).count()
         
-        print(f"Debug - Remaining matches: {remaining_matches}, Scheduled: {scheduled_matches}")
-        
         if remaining_matches == 0 and scheduled_matches == 0:
-            print(f"Debug - No more matches, completing tournament")
             tournament = Tournament.query.get(tournament_id)
             tournament.status = 'Completed'
             _process_tournament_completion(tournament_id)
-    
-    try:
-        
-        db.session.commit()
-        return jsonify({
-            'match_id': match.match_id,
-            'status': match.match_status,
-            'team1_score': match.team1_score,
-            'team2_score': match.team2_score,
-            'winner_team_id': winner_team_id
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
 
 @matches_bp.route('/api/tournaments/<int:tournament_id>/generate-matches', methods=['POST'])
 def generate_matches(tournament_id):
@@ -318,106 +355,7 @@ def generate_matches(tournament_id):
     db.session.commit()
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     
-    return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201
-    
-
-# Removed old bracket generation functions
-  
-
-@matches_bp.route('/api/matches/<int:match_id>/score', methods=['PUT'])
-def update_match_score(match_id):
-    if match_id <= 0:
-        return jsonify({'error': 'Invalid match ID'}), 400
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Score data required'}), 400
-    
-    match = Match.query.get(match_id)
-    if not match:
-        return jsonify({'error': 'Match not found'}), 404
-    
-    # Validate tournament exists and is in correct state
-    tournament = Tournament.query.get(match.tournament_id)
-    if not tournament:
-        return jsonify({'error': 'Tournament not found'}), 404
-    
-    if tournament.status not in ['Scheduled', 'In_Progress']:
-        return jsonify({'error': f'Cannot score matches for tournament with status: {tournament.status}'}), 400
-    
-    # Validate scores
-    try:
-        team1_score = int(data.get('team1_score', 0))
-        team2_score = int(data.get('team2_score', 0))
-        if team1_score < 0 or team2_score < 0:
-            return jsonify({'error': 'Scores must be non-negative'}), 400
-        if team1_score == team2_score:
-            return jsonify({'error': 'Matches cannot end in a tie'}), 400
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid score format'}), 400
-    
-    # Check if this is a re-score (editing existing result)
-    is_rescore = match.match_status == 'Completed'
-    old_winner_team_id = None
-    old_loser_team_id = None
-    
-    if is_rescore:
-        # Store old results for rollback
-        old_winner_team_id = match.team1_id if match.team1_score > match.team2_score else match.team2_id
-        old_loser_team_id = match.team2_id if match.team1_score > match.team2_score else match.team1_id
-    
-    # Update match scores
-    match.team1_score = team1_score
-    match.team2_score = team2_score
-    match.match_status = 'Completed'
-    
-    # Determine new winner and loser
-    winner_team_id = match.team1_id if team1_score > team2_score else match.team2_id
-    loser_team_id = match.team2_id if team1_score > team2_score else match.team1_id
-    
-    advancement_results = []
-    rollback_results = []
-    
-    # Handle re-scoring: rollback previous advancements if winner changed
-    if is_rescore and (old_winner_team_id != winner_team_id):
-        rollback_results = _rollback_match_advancements(match, old_winner_team_id, old_loser_team_id)
-    
-    # Advance teams based on new results (only if slots are available)
-    if match.winner_advances_to_match_id:
-        winner_advanced = _advance_team_to_match(winner_team_id, match.winner_advances_to_match_id)
-        if winner_advanced:
-            advancement_results.append({
-                'team_id': winner_team_id,
-                'type': 'winner',
-                'advanced_to_match_id': match.winner_advances_to_match_id
-            })
-    
-    if match.loser_advances_to_match_id:
-        loser_advanced = _advance_team_to_match(loser_team_id, match.loser_advances_to_match_id)
-        if loser_advanced:
-            advancement_results.append({
-                'team_id': loser_team_id,
-                'type': 'loser',
-                'advanced_to_match_id': match.loser_advances_to_match_id
-            })
-    
-    # Handle championship match completion
-    if match.round_type == 'Championship':
-        _handle_championship_completion(match, winner_team_id, loser_team_id)
-    
-    db.session.commit()
-    
-    return jsonify({
-        'match_id': match.match_id,
-        'team1_score': match.team1_score,
-        'team2_score': match.team2_score,
-        'match_status': match.match_status,
-        'winner_team_id': winner_team_id,
-        'loser_team_id': loser_team_id,
-        'is_rescore': is_rescore,
-        'advancements': advancement_results,
-        'rollbacks': rollback_results
-    })
+    return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201    
 
 def _rollback_match_advancements(match, old_winner_id, old_loser_id):
     """Remove teams from subsequent matches when re-scoring"""
@@ -426,7 +364,7 @@ def _rollback_match_advancements(match, old_winner_id, old_loser_id):
     
     # Remove old winner from winner advancement match
     if match.winner_advances_to_match_id:
-        target_match = Match.query.get(match.winner_advances_to_match_id)
+        target_match = Match.query.filter_by(tournament_id=match.tournament_id, match_id=match.winner_advances_to_match_id).first()
         if target_match:
             if target_match.team1_id == old_winner_id:
                 target_match.team1_id = None
@@ -437,7 +375,7 @@ def _rollback_match_advancements(match, old_winner_id, old_loser_id):
     
     # Remove old loser from loser advancement match
     if match.loser_advances_to_match_id:
-        target_match = Match.query.get(match.loser_advances_to_match_id)
+        target_match = Match.query.filter_by(tournament_id=match.tournament_id, match_id=match.loser_advances_to_match_id).first()
         if target_match:
             if target_match.team1_id == old_loser_id:
                 target_match.team1_id = None
@@ -447,23 +385,6 @@ def _rollback_match_advancements(match, old_winner_id, old_loser_id):
                 rollbacks.append({'team_id': old_loser_id, 'removed_from_match_id': target_match.match_id})
     
     return rollbacks
-
-def _advance_team_to_match(team_id, tournament_id, target_match_id):
-    """Advance a team to the next match"""
-    target_match = Match.query.filter_by(tournament_id=tournament_id, match_id=target_match_id).first()
-    if not target_match:
-        return False
-    
-    # Place team in first available slot
-    if target_match.team1_id is None:
-        target_match.team1_id = team_id
-        return True
-    elif target_match.team2_id is None:
-        target_match.team2_id = team_id
-        return True
-    
-    # Both slots filled - match is ready
-    return False
 
 def _auto_advance_byes(tournament_id):
     """Auto-advance teams in bye matches (matches with only one team that won't get a second team)"""

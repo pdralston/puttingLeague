@@ -145,11 +145,21 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
           📊 Score
         </button>
       )}
+
+      {match.match_status === 'Completed' && onScoreMatch && (
+        <div className="edit-overlay" onClick={() => {
+          setTeam1Score(match.team1_score?.toString() || '');
+          setTeam2Score(match.team2_score?.toString() || '');
+          setShowScorePopup(true);
+        }}>
+          ✏️ Edit
+        </div>
+      )}
       
       {showScorePopup && (
-        <div className="score-popup-overlay" onClick={() => setShowScorePopup(false)}>
+        <div className="score-popup-overlay">
           <div className="score-popup" onClick={(e) => e.stopPropagation()}>
-            <h4>Enter Scores</h4>
+            <h4>{match.match_status === 'Completed' ? 'Edit Scores' : 'Enter Scores'}</h4>
             <div className="score-input">
               <label>{getTeamDisplay(match.team1_id, true)}</label>
               <input 
@@ -170,7 +180,9 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
             </div>
             <div className="score-buttons">
               <button onClick={() => setShowScorePopup(false)}>Cancel</button>
-              <button onClick={handleScoreSubmit}>Submit</button>
+              <button onClick={handleScoreSubmit}>
+                {match.match_status === 'Completed' ? 'Update' : 'Submit'}
+              </button>
             </div>
           </div>
         </div>

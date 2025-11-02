@@ -250,6 +250,7 @@ main {
   background: #FFFFFF;
   min-width: 160px;
   box-shadow: 0 2px 8px rgba(26, 255, 149, 0.2);
+  position: relative;
 }
 
 .match-header {
@@ -544,6 +545,43 @@ main {
 .score-button:hover {
   background-color: #038549;
   color: #FFFFFF;
+}
+
+.edit-button {
+  background-color: #FFA500;
+  color: #000000;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 4px;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #FF8C00;
+  color: #FFFFFF;
+}
+
+.edit-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 165, 0, 0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.match:hover .edit-overlay {
+  display: flex;
 }
 
 .score-popup-overlay {
