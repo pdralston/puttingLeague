@@ -7,7 +7,13 @@ from database import db
 
 load_dotenv()
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
+
+# Session configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Database configuration
 DATABASE_URL = os.environ.get('DATABASE_URL') or \
@@ -27,7 +33,9 @@ from routes.players import players_bp
 from routes.tournaments import tournaments_bp
 from routes.matches import matches_bp
 from routes.ace_pot import ace_pot_bp
+from routes.auth import auth_bp
 
+app.register_blueprint(auth_bp)
 app.register_blueprint(players_bp)
 app.register_blueprint(tournaments_bp)
 app.register_blueprint(matches_bp)
