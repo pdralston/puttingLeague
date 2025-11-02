@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from database import db
 from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory
+from routes.auth import require_auth
 import csv
 import io
 
@@ -61,6 +62,7 @@ def get_players():
     } for p in players])
 
 @players_bp.route('/api/players', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def create_players():
     data = request.get_json()
     
@@ -119,6 +121,7 @@ def create_players():
     return jsonify(result), 201
 
 @players_bp.route('/api/players/<int:player_id>', methods=['PUT'])
+@require_auth(['Admin', 'Director'])
 def update_player(player_id):
     player = RegisteredPlayer.query.get(player_id)
     if not player:
@@ -151,6 +154,7 @@ def update_player(player_id):
         return jsonify({'error': str(e)}), 500
 
 @players_bp.route('/api/players/batch-csv', methods=['POST'])
+@require_auth(['Admin', 'Director'])
 def create_players_csv():
     if 'csv_data' not in request.json:
         return jsonify({'error': 'csv_data field required'}), 400
