@@ -294,6 +294,14 @@ def generate_matches(tournament_id):
             if lb_match:
                 match.loser_advances_to_match_id = lb_match.match_id
     
+    # Handle losers bracket byes in rounds 0 and 1
+    for lb_match in lb_matches:
+        if lb_match.round_number in [0, 1]:
+            feeding_matches = [m for m in matches if m.winner_advances_to_match_id == lb_match.match_id or m.loser_advances_to_match_id == lb_match.match_id]
+            if len(feeding_matches) == 1:
+                feeding_matches[0].loser_advances_to_match_id = lb_match.winner_advances_to_match_id
+                bye_matches_to_remove.append(lb_match)
+    
     # Remove bye matches from the list
     for bye_match in bye_matches_to_remove:
         matches.remove(bye_match)
