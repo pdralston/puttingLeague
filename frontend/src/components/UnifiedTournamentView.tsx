@@ -17,6 +17,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [tournamentStatus, setTournamentStatus] = useState<string>('');
+  const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     ]).then(([matches, teams, tournamentData, acePotData]) => {
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentStatus(tournamentData.status);
+      setShowCompletionOverlay(tournamentData.status === 'Completed');
       
       const totalBalance = acePotData.reduce((sum: number, entry: any) => sum + entry.amount, 0);
       setAcePotBalance(totalBalance);
@@ -46,6 +48,20 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
   const handleScoreMatch = async (matchId: number, team1Score: number, team2Score: number) => {
     if (!showManagementActions) return;
+    
+    // Check if this is the last match that would complete the tournament
+    const match = tournament?.matches.find(m => m.match_id === matchId);
+    const isLastMatch = match?.round_type === 'Championship' && (
+      match.round_number === 1 || // Second championship match
+      (match.round_number === 0 && team1Score > team2Score) // First championship match with WB winner winning
+    );
+    
+    if (isLastMatch) {
+      const confirmed = window.confirm(
+        'This will complete and finalize the tournament. Are you sure you want to proceed?'
+      );
+      if (!confirmed) return;
+    }
     
     try {
       const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${matchId}/score`, {
@@ -190,7 +206,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
         </div>
       )}
       
-      <div className="tournament-content" style={{ position: 'relative' }}>
+      <div className={`tournament-content ${matchesInProgress.length > 0 ? 'with-matches-in-progress' : ''}`} style={{ position: 'relative' }}>
         {showManagementActions && tournamentStatus === 'Scheduled' && (
           <div className="tournament-overlay">
             <div className="overlay-content">
@@ -203,7 +219,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           </div>
         )}
         
-        {tournamentStatus === 'Completed' && (
+        {tournamentStatus === 'Completed' && showCompletionOverlay && (
           <div className="tournament-overlay">
             <div className="overlay-content">
               <h2>Tournament Complete!</h2>
@@ -222,7 +238,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                   );
                 })}
               </div>
-              <button className="close-overlay-button" onClick={() => setTournamentStatus('')}>
+              <button className="close-overlay-button" onClick={() => setShowCompletionOverlay(false)}>
                 Close
               </button>
             </div>
@@ -237,8 +253,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
               teams={tournament.teams}
               players={[]}
               title="Winners Bracket"
-              onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
-              onStartMatch={showManagementActions ? handleStartMatch : undefined}
+              onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+              onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
             />
           )}
           {losersMatches.length > 0 && (
@@ -248,8 +264,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
               teams={tournament.teams}
               players={[]}
               title="Losers Bracket"
-              onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
-              onStartMatch={showManagementActions ? handleStartMatch : undefined}
+              onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+              onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
             />
           )}
           {championshipMatches.filter(m => m.team1_id && m.team2_id).length > 0 && (
@@ -260,8 +276,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                 teams={tournament.teams}
                 players={[]}
                 title="🏆 Championship"
-                onScoreMatch={showManagementActions ? handleScoreMatch : undefined}
-                onStartMatch={showManagementActions ? handleStartMatch : undefined}
+                onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+                onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
               />
             </div>
           )}

@@ -88,15 +88,15 @@
 }
 
 .players-table th:nth-child(1) {
-  width: 80px;
-}
-
-.players-table th:nth-child(2) {
   width: auto;
 }
 
+.players-table th:nth-child(2) {
+  width: 200px;
+}
+
 .players-table th:nth-child(3) {
-  width: 150px;
+  width: 50px;
 }
 
 .players-table thead th {

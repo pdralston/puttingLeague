@@ -4,9 +4,10 @@ import { Player } from '../types/player';
 interface PlayerListProps {
   players: Player[];
   onPlayerClick: (player: Player) => void;
+  onEditPlayer?: (player: Player) => void;
 }
 
-const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick, onEditPlayer }) => {
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
 
   // Filter players by division
@@ -65,39 +66,49 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick }) => {
         <table className="players-table">
           <thead>
             <tr>
-              <th>Rank</th>
               <th>Name</th>
-              <th>
+              <th className="division-header">
+                Division
                 <select 
                   value={divisionFilter} 
                   onChange={(e) => setDivisionFilter(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: '#000', fontWeight: 'bold' }}
+                  className="division-filter"
                 >
-                  <option value="All">All Divisions</option>
+                  <option value="All">(All)</option>
                   <option value="Pro">Pro</option>
                   <option value="Am">Am</option>
                   <option value="Junior">Junior</option>
                 </select>
               </th>
+              {onEditPlayer && <th className="actions-header">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {sortedPlayers.map(player => (
               <tr 
                 key={player.player_id} 
-                onClick={() => onPlayerClick(player)} 
                 className={`clickable-row ${getLeaderClass(player)}`}
               >
-                <td className="rank-cell">
-                  {getRankDisplay(player)}
-                </td>
-                <td>
+                <td onClick={() => onPlayerClick(player)}>
                   <div className="player-name">
-                    {player.player_name}
+                    <span className="rank-display">{getRankDisplay(player)}</span> {player.player_name}
                     {player.nickname && <span className="nickname">"{player.nickname}"</span>}
                   </div>
                 </td>
-                <td>{player.division}</td>
+                <td onClick={() => onPlayerClick(player)}>{player.division}</td>
+                {onEditPlayer && (
+                  <td className="actions-cell">
+                    <button 
+                      className="edit-button-small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditPlayer(player);
+                      }}
+                    >
+                      ✏️
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

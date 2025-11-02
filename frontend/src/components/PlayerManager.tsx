@@ -16,6 +16,8 @@ const PlayerManager: React.FC = () => {
   const [csvData, setCsvData] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [editForm, setEditForm] = useState({ player_name: '', nickname: '', division: '' });
 
   const getDivisionalRank = (player: Player): number => {
     const divisionPlayers = players
@@ -59,6 +61,35 @@ const PlayerManager: React.FC = () => {
       console.error('Failed to fetch players:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditPlayer = (player: Player) => {
+    setEditingPlayer(player);
+    setEditForm({
+      player_name: player.player_name,
+      nickname: player.nickname || '',
+      division: player.division
+    });
+  };
+
+  const handleUpdatePlayer = async () => {
+    if (!editingPlayer) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/players/${editingPlayer.player_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+      
+      if (response.ok) {
+        await fetchPlayers();
+        setEditingPlayer(null);
+        setEditForm({ player_name: '', nickname: '', division: '' });
+      }
+    } catch (error) {
+      console.error('Failed to update player:', error);
     }
   };
 
@@ -270,7 +301,50 @@ const PlayerManager: React.FC = () => {
         />
       </div>
       
-      <PlayerList players={filteredPlayers} onPlayerClick={handlePlayerClick} />
+      <PlayerList 
+        players={filteredPlayers} 
+        onPlayerClick={handlePlayerClick}
+        onEditPlayer={handleEditPlayer}
+      />
+      
+      {editingPlayer && (
+        <div className="edit-modal-overlay">
+          <div className="edit-modal">
+            <h3>Edit Player</h3>
+            <div className="form-group">
+              <label>Player Name:</label>
+              <input
+                type="text"
+                value={editForm.player_name}
+                onChange={(e) => setEditForm({...editForm, player_name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Nickname:</label>
+              <input
+                type="text"
+                value={editForm.nickname}
+                onChange={(e) => setEditForm({...editForm, nickname: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label>Division:</label>
+              <select
+                value={editForm.division}
+                onChange={(e) => setEditForm({...editForm, division: e.target.value})}
+              >
+                <option value="Am">Am</option>
+                <option value="Pro">Pro</option>
+                <option value="Junior">Junior</option>
+              </select>
+            </div>
+            <div className="modal-buttons">
+              <button onClick={() => setEditingPlayer(null)}>Cancel</button>
+              <button onClick={handleUpdatePlayer}>Update</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
