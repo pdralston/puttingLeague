@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap');
+
+.landing-page {
+  min-height: 100vh;
+  background-color: #003A1F;
+  color: white;
+}
+
+.landing-hero {
+  padding: 6rem 0rem 1rem 0rem ;
+  text-align: center;
+  border-bottom: 2px solid #1AFF95;
+}
+
+.landing-hero h1 {
+  margin: 0 0 2rem 0;
+  font-size: 4rem;
+  color: #1AFF95;
+}
+
+.landing-nav {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.landing-nav button {
+  background-color: #1AFF95;
+  color: #003A1F;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.landing-nav button:hover {
+  background-color: #15CC7A;
+  transform: translateY(-2px);
+}
+
+.landing-content {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tab-container {
+  background-color: #004A2A;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.tab-buttons {
+  display: flex;
+  background-color: #002A17;
+  border-bottom: 2px solid #1AFF95;
+}
+
+.tab-buttons button {
+  flex: 1;
+  background-color: transparent;
+  color: #1AFF95;
+  border: none;
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  border-right: 1px solid #1AFF95;
+}
+
+.tab-buttons button:last-child {
+  border-right: none;
+}
+
+.tab-buttons button:hover {
+  background-color: #003A1F;
+}
+
+.tab-buttons button.active {
+  background-color: #1AFF95;
+  color: #003A1F;
+}
+
+.tab-content {
+  padding: 2rem;
+}
+
+.tab-panel h2 {
+  color: #1AFF95;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+}
+
+.tab-panel h3 {
+  color: #1AFF95;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.tab-panel p {
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  white-space: pre-line;
+  font-family: 'Roboto', sans-serif !important;
+  font-weight: 500 !important;
+  text-align: left;
+}
+
+.tab-panel section {
+  margin-bottom: 2rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.contact-button, .support-button {
+  background-color: #1AFF95;
+  color: #003A1F;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.contact-button:hover, .support-button:hover {
+  background-color: #15CC7A;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .landing-hero {
+    padding: 1rem;
+  }
+  
+  .landing-hero h1 {
+    font-size: 2rem;
+  }
+  
+  .landing-nav {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .landing-nav button {
+    width: 200px;
+  }
+  
+  .landing-content {
+    padding: 1rem;
+  }
+  
+  .tab-buttons {
+    flex-direction: column;
+  }
+  
+  .tab-buttons button {
+    border-right: none;
+    border-bottom: 1px solid #1AFF95;
+  }
+  
+  .tab-buttons button:last-child {
+    border-bottom: none;
+  }
+  
+  .tab-content {
+    padding: 1rem;
+  }
+}
