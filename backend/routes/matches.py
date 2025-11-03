@@ -596,39 +596,50 @@ def _update_teammate_history(tournament_id):
     teams = Team.query.filter_by(tournament_id=tournament_id).all()
     
     for team in teams:
-        if not team.is_ghost_team and team.player2_id:
+        if not team.is_ghost_team and team.player2_id and team.final_place:
             # Update history for both players
             for player_id, teammate_id in [(team.player1_id, team.player2_id), (team.player2_id, team.player1_id)]:
                 history = TeamHistory.query.filter_by(player_id=player_id, teammate_id=teammate_id).first()
                 
                 if history:
+                    # Calculate new average place
+                    total_place = (history.average_place or 0) * history.times_paired + team.final_place
                     history.times_paired += 1
+                    history.average_place = total_place / history.times_paired
                 else:
                     history = TeamHistory(
                         player_id=player_id,
                         teammate_id=teammate_id,
                         times_paired=1,
-                        average_place=None
+                        average_place=team.final_place
                     )
                     db.session.add(history)
 
 def _update_seasonal_points(tournament_id):
-    """Update seasonal points for all players in tournament"""
-    from models import RegisteredPlayer, TournamentRegistration
+    """Update seasonal points for all teams and players in tournament"""
+    from models import RegisteredPlayer, Team
     
-    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
     
-    for reg in registrations:
-        player = RegisteredPlayer.query.get(reg.player_id)
-        if player:
-            # Calculate points: 1 for participation + match wins + top 4 bonus + undefeated bonus
-            participation_points = 1
-            match_wins = _count_match_wins(tournament_id, reg.player_id)
-            top_4_bonus = 2 if _is_top_4_finish(tournament_id, reg.player_id) else 0
-            undefeated_bonus = 3 if _is_undefeated(tournament_id, reg.player_id) else 0
-            
-            total_points = participation_points + match_wins + top_4_bonus + undefeated_bonus
-            player.seasonal_points += total_points
+    for team in teams:
+        # Calculate team points: 1 for participation + match wins + top 4 bonus + undefeated bonus
+        participation_points = 1
+        match_wins = _count_team_match_wins(tournament_id, team.team_id)
+        top_4_bonus = 2 if team.final_place and team.final_place <= 4 else 0
+        undefeated_bonus = 3 if _is_team_undefeated(tournament_id, team.team_id) else 0
+        
+        team.points_earned = participation_points + match_wins + top_4_bonus + undefeated_bonus
+        
+        # Update player seasonal points
+        if team.player1_id:
+            player1 = RegisteredPlayer.query.get(team.player1_id)
+            if player1:
+                player1.seasonal_points += team.points_earned
+        
+        if team.player2_id:
+            player2 = RegisteredPlayer.query.get(team.player2_id)
+            if player2:
+                player2.seasonal_points += team.points_earned
 
 def _distribute_cash_payouts(tournament_id):
     """Calculate and distribute cash payouts to players"""
@@ -754,6 +765,42 @@ def _is_undefeated(tournament_id, player_id):
             if ((match.team1_id == team.team_id and match.team1_score < match.team2_score) or
                 (match.team2_id == team.team_id and match.team2_score < match.team1_score)):
                 return False
+    
+    return True
+
+def _count_team_match_wins(tournament_id, team_id):
+    """Count matches won by specific team (excluding byes)"""
+    matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Match.team1_id == team_id, Match.team2_id == team_id)
+    ).filter(Match.match_status == 'Completed').all()
+    
+    wins = 0
+    for match in matches:
+        # Skip bye matches (only one team)
+        if match.team2_id is None:
+            continue
+            
+        if ((match.team1_id == team_id and match.team1_score > match.team2_score) or
+            (match.team2_id == team_id and match.team2_score > match.team1_score)):
+            wins += 1
+    
+    return wins
+
+def _is_team_undefeated(tournament_id, team_id):
+    """Check if specific team went undefeated"""
+    matches = Match.query.filter_by(tournament_id=tournament_id).filter(
+        db.or_(Match.team1_id == team_id, Match.team2_id == team_id)
+    ).filter(Match.match_status == 'Completed').all()
+    
+    for match in matches:
+        # Skip bye matches
+        if match.team2_id is None:
+            continue
+            
+        # If team lost any match, not undefeated
+        if ((match.team1_id == team_id and match.team1_score < match.team2_score) or
+            (match.team2_id == team_id and match.team2_score < match.team1_score)):
+            return False
     
     return True
 

@@ -60,6 +60,7 @@ def get_player_detail(player_id):
             'status': t[0].status,
             'bought_ace_pot': t[1].bought_ace_pot,
             'final_place': t[2].final_place if t[2] else None,
+            'points_earned': t[2].points_earned if t[2] else 0,
             'won_ace_pot': t[3]
         } for t in tournaments_with_undefeated],
         'teammate_history': [{

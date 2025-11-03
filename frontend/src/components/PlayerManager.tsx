@@ -214,6 +214,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
                       {t.won_ace_pot === true ? <span className="ace-winner">🎯 ACE POT</span> : <span></span>}
                       <span>Status: {t.status}</span>
                       {t.final_place && <span>Place: {t.final_place}</span>}
+                      <span>Points Earned: {t.points_earned}</span>
                     </div>
                   ))
                 ) : (

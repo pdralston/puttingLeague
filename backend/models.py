@@ -79,6 +79,7 @@ class Team(db.Model):
     is_ghost_team = db.Column(db.Boolean, default=False)
     seed_number = db.Column(db.Integer)
     final_place = db.Column(db.Integer)
+    points_earned= db.Column(db.Integer)
 
 class Match(db.Model):
     __tablename__ = 'matches'
