@@ -7,7 +7,9 @@ import './components/TournamentDirectory.css';
 import './components/AcePotTracker.css';
 import './components/TournamentCreation.css';
 import './components/Admin.css';
+import './components/LandingPage.css';
 
+import LandingPage from './components/LandingPage';
 import UnifiedTournamentView from './components/UnifiedTournamentView';
 import TournamentDirectory from './components/TournamentDirectory';
 import TournamentCreation from './components/TournamentCreation';
@@ -25,7 +27,7 @@ interface User {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'players' | 'leaderboard' | 'tournaments' | 'ace-pot' | 'admin'>('players');
+  const [activeTab, setActiveTab] = useState<'landing' | 'players' | 'leaderboard' | 'tournaments' | 'ace-pot' | 'admin'>('landing');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
   const [playerManagerKey, setPlayerManagerKey] = useState(0);
@@ -56,7 +58,7 @@ function App() {
       console.error('Logout error:', error);
     }
     setUser({ user_id: 0, username: 'Viewer', role: 'Viewer' });
-    setActiveTab('players');
+    setActiveTab('landing');
     setSelectedTournament(null);
     setTournamentMode('view');
   };
@@ -82,12 +84,67 @@ function App() {
     setTournamentMode('view');
   };
 
+  const handleNavigateFromLanding = (tab: 'players' | 'leaderboard' | 'tournaments' | 'ace-pot') => {
+    setActiveTab(tab);
+    setSelectedTournament(null);
+    setTournamentMode('view');
+  };
+
+  if (activeTab === 'landing') {
+    return (
+      <div className="App">
+        {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
+        <header className="App-header">
+          <h1>DG-Putt</h1>
+          <nav>
+            <button 
+              className="home-button"
+              onClick={() => setActiveTab('landing')}
+            >
+              Home
+            </button>
+            <button onClick={() => handleNavigateFromLanding('players')}>Players</button>
+            <button onClick={() => handleNavigateFromLanding('leaderboard')}>Leaderboard</button>
+            <button onClick={() => handleNavigateFromLanding('tournaments')}>Tournaments</button>
+            <button onClick={() => handleNavigateFromLanding('ace-pot')}>Ace Pot</button>
+            {(user.role === 'Admin' || user.role === 'Director') && (
+              <button onClick={() => setActiveTab('admin')}>Admin</button>
+            )}
+            <div className="auth-section">
+              {user.role === 'Viewer' ? (
+                <button className="login-button" onClick={() => setShowLogin(true)}>
+                  Login
+                </button>
+              ) : (
+                <button className="logout-button" onClick={handleLogout}>
+                  Logout
+                </button>
+              )}
+              {user.role === 'Viewer' ? (
+                <></>
+              ) : (
+                <span className="user-info">{user.username}</span>
+              )}
+            </div>
+          </nav>
+        </header>
+        <LandingPage onNavigate={handleNavigateFromLanding} />
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
       <header className="App-header">
         <h1>DG Putt</h1>
         <nav>
+          <button 
+            className="home-button"
+            onClick={() => setActiveTab('landing')}
+          >
+            Home
+          </button>
           <button 
             className={activeTab === 'players' ? 'active' : ''}
             onClick={() => {

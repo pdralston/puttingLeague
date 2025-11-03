@@ -676,8 +676,8 @@ def _distribute_cash_payouts(tournament_id):
     second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
     
     # Calculate payouts
-    if total_payout_pot < 60:
-        second_place_payout = 10 if total_payout_pot > 10 else 0
+    if total_payout_pot <= 60:
+        second_place_payout = 20
         first_place_payout = total_payout_pot - second_place_payout
     else:
         second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
