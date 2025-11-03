@@ -103,7 +103,8 @@ def get_tournaments():
                 'player1_id': t.player1_id,
                 'player2_id': t.player2_id,
                 'is_ghost_team': t.is_ghost_team,
-                'seed_number': t.seed_number
+                'seed_number': t.seed_number,
+                'points_earned': t.points_earned
             } for t in teams]
         })
     else:
