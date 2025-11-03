@@ -279,7 +279,21 @@ def generate_matches(tournament_id):
     if len(teams) < 4:
         return jsonify({'error': 'Need at least 4 teams'}), 400
     
-    # Calculate bracket parameters
+    matches = _create_bracket_matches(tournament_id, teams)
+    _set_advancement_paths(matches)
+    _seed_teams_and_handle_byes(matches, teams)
+    _set_match_order(matches)
+    
+    # Single database transaction
+    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+    db.session.add_all(matches)
+    db.session.commit()
+    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+    
+    return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201
+
+def _create_bracket_matches(tournament_id, teams):
+    """Create all bracket matches (winners, losers, championship)"""
     bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     wb_rounds = int(math.log2(bracket_size))
     byes_needed = bracket_size - len(teams)
@@ -319,9 +333,14 @@ def generate_matches(tournament_id):
     )
     matches.append(championship)
     
-    # Set all advancement paths in memory
+    return matches
+
+def _set_advancement_paths(matches):
+    """Set winner and loser advancement paths for all matches"""
     wb_matches = [m for m in matches if m.round_type == 'Winners']
     lb_matches = [m for m in matches if m.round_type == 'Losers']
+    championship = next(m for m in matches if m.round_type == 'Championship')
+    wb_rounds = max(m.round_number for m in wb_matches) + 1
     
     # Winners bracket progression
     for match in wb_matches:
@@ -347,10 +366,30 @@ def generate_matches(tournament_id):
         else:
             match.winner_advances_to_match_id = championship.match_id
     
-    # Seed teams and handle byes
+    # Set losers bracket drops
+    for match in wb_matches:
+        if match.round_number == 0:
+            lb_match = next((m for m in lb_matches if m.round_number == 0), None)
+            if lb_match:
+                match.loser_advances_to_match_id = lb_match.match_id
+        elif match.round_number > 0:
+            lb_round = (match.round_number - 1) * 2 + 1
+            lb_match = next((m for m in lb_matches 
+                           if m.round_number == lb_round and m.position_in_round == match.position_in_round), None)
+            if lb_match:
+                match.loser_advances_to_match_id = lb_match.match_id
+
+def _seed_teams_and_handle_byes(matches, teams):
+    """Seed teams into first round and handle bye advancement"""
+    wb_matches = [m for m in matches if m.round_type == 'Winners']
+    lb_matches = [m for m in matches if m.round_type == 'Losers']
+    bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
+    byes_needed = bracket_size - len(teams)
+    
     first_round = [m for m in wb_matches if m.round_number == 0]
     bye_matches_to_remove = []
     
+    # Handle byes
     for i in range(byes_needed):
         first_round[i].team1_id = teams[i].team_id
         first_round[i].match_status = 'Scheduled'
@@ -377,20 +416,7 @@ def generate_matches(tournament_id):
             first_round[i].match_status = 'Scheduled'
             team_idx += 1
     
-    # Set losers bracket drops for real matches only
-    for match in wb_matches:
-        if match.round_number == 0 and match.team2_id is not None:
-            lb_match = next((m for m in lb_matches if m.round_number == 0), None)
-            if lb_match:
-                match.loser_advances_to_match_id = lb_match.match_id
-        elif match.round_number > 0:
-            lb_round = (match.round_number - 1) * 2 + 1
-            lb_match = next((m for m in lb_matches 
-                           if m.round_number == lb_round and m.position_in_round == match.position_in_round), None)
-            if lb_match:
-                match.loser_advances_to_match_id = lb_match.match_id
-    
-    # Handle losers bracket byes in rounds 0 and 1
+    # Handle losers bracket byes
     for lb_match in lb_matches:
         if lb_match.round_number in [0, 1]:
             feeding_matches = [m for m in matches if m.winner_advances_to_match_id == lb_match.match_id or m.loser_advances_to_match_id == lb_match.match_id]
@@ -398,23 +424,16 @@ def generate_matches(tournament_id):
                 feeding_matches[0].loser_advances_to_match_id = lb_match.winner_advances_to_match_id
                 bye_matches_to_remove.append(lb_match)
     
-    # Remove bye matches from the list
+    # Remove bye matches
     for bye_match in bye_matches_to_remove:
         matches.remove(bye_match)
-    
-    # Set match_order for all non-Championship matches
+
+def _set_match_order(matches):
+    """Set match order for scheduling"""
     non_championship_matches = [m for m in matches if m.round_type != 'Championship']
     non_championship_matches.sort(key=lambda m: (m.round_number, m.round_type == 'Losers', m.match_id))
     for i, match in enumerate(non_championship_matches, 1):
-        match.match_order = i
-    
-    # Single database transaction
-    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-    db.session.add_all(matches)
-    db.session.commit()
-    db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-    
-    return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201    
+        match.match_order = i    
 
 def _rollback_match_advancements(match, old_winner_id, old_loser_id):
     """Remove teams from subsequent matches when re-scoring"""
@@ -710,63 +729,6 @@ def _distribute_cash_payouts(tournament_id):
                     player.seasonal_cash += Decimal(str(first_place_payout / teammates_count))
                 elif player_team.final_place == 2:
                     player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
-
-def _count_match_wins(tournament_id, player_id):
-    """Count matches won by player's team (excluding byes)"""
-    from models import Team
-    
-    # Find teams this player was on
-    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
-        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
-    ).all()
-    
-    wins = 0
-    for team in teams:
-        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
-            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
-        ).filter(Match.match_status == 'Completed').all()
-        
-        for match in matches:
-            # Skip bye matches (only one team)
-            if match.team2_id is None:
-                continue
-                
-            if ((match.team1_id == team.team_id and match.team1_score > match.team2_score) or
-                (match.team2_id == team.team_id and match.team2_score > match.team1_score)):
-                wins += 1
-    
-    return wins
-
-def _is_top_4_finish(tournament_id, player_id):
-    """Check if player finished in top 4"""
-    from models import Team
-    
-    team = Team.query.filter_by(tournament_id=tournament_id).filter(
-        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
-    ).first()
-    
-    return team and team.final_place and team.final_place <= 4
-
-def _is_undefeated(tournament_id, player_id):
-    """Check if player's team went undefeated"""
-    from models import Team
-    
-    teams = Team.query.filter_by(tournament_id=tournament_id).filter(
-        db.or_(Team.player1_id == player_id, Team.player2_id == player_id)
-    ).all()
-    
-    for team in teams:
-        matches = Match.query.filter_by(tournament_id=tournament_id).filter(
-            db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
-        ).filter(Match.match_status == 'Completed').all()
-        
-        for match in matches:
-            # If team lost any match, not undefeated
-            if ((match.team1_id == team.team_id and match.team1_score < match.team2_score) or
-                (match.team2_id == team.team_id and match.team2_score < match.team1_score)):
-                return False
-    
-    return True
 
 def _count_team_match_wins(tournament_id, team_id):
     """Count matches won by specific team (excluding byes)"""
