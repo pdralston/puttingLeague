@@ -103,7 +103,8 @@ def get_tournaments():
                 'player1_id': t.player1_id,
                 'player2_id': t.player2_id,
                 'is_ghost_team': t.is_ghost_team,
-                'seed_number': t.seed_number
+                'seed_number': t.seed_number,
+                'points_earned': t.points_earned
             } for t in teams]
         })
     else:
@@ -137,13 +138,18 @@ def create_tournament():
     if len(players) < 2:
         return jsonify({'error': 'At least 2 players required to create tournament'}), 400
     
+    stations = data.get('stations', 6)
+    if not isinstance(stations, int) or stations < 1 or stations > 20:
+        return jsonify({'error': 'Stations must be between 1 and 20'}), 400
+    
     try:
         # Create tournament
         tournament = Tournament(
             tournament_date=tournament_date,
             status='Scheduled',
             total_teams=0,
-            ace_pot_payout=0.00
+            ace_pot_payout=0.00,
+            stations=stations
         )
         
         db.session.add(tournament)
@@ -409,30 +415,34 @@ def _cleanup_teammate_history(tournament_id):
 
 def _adjust_seasonal_points(tournament_id, reverse=False):
     """Adjust seasonal points for tournament (add or subtract)"""
-    from models import RegisteredPlayer, TournamentRegistration, Team, Match
+    from models import RegisteredPlayer, Team
     
     # Only adjust points for completed tournaments (where points were actually awarded)
     tournament = Tournament.query.get(tournament_id)
     if not tournament or tournament.status != 'Completed':
         return
     
-    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
     
-    for reg in registrations:
-        player = RegisteredPlayer.query.get(reg.player_id)
-        if player:
-            # Calculate same points as when tournament completed
-            participation_points = 1
-            match_wins = _count_match_wins_for_deletion(tournament_id, reg.player_id)
-            top_4_bonus = 2 if _is_top_4_finish_for_deletion(tournament_id, reg.player_id) else 0
-            undefeated_bonus = 3 if _is_undefeated_for_deletion(tournament_id, reg.player_id) else 0
+    for team in teams:
+        if team.points_earned:
+            # Adjust player1 points
+            if team.player1_id:
+                player1 = RegisteredPlayer.query.get(team.player1_id)
+                if player1:
+                    if reverse:
+                        player1.seasonal_points = max(0, player1.seasonal_points - team.points_earned)
+                    else:
+                        player1.seasonal_points += team.points_earned
             
-            total_points = participation_points + match_wins + top_4_bonus + undefeated_bonus
-            
-            if reverse:
-                player.seasonal_points = max(0, player.seasonal_points - total_points)
-            else:
-                player.seasonal_points += total_points
+            # Adjust player2 points
+            if team.player2_id:
+                player2 = RegisteredPlayer.query.get(team.player2_id)
+                if player2:
+                    if reverse:
+                        player2.seasonal_points = max(0, player2.seasonal_points - team.points_earned)
+                    else:
+                        player2.seasonal_points += team.points_earned
 
 def _count_match_wins_for_deletion(tournament_id, player_id):
     """Count matches won by player's team (for deletion)"""

@@ -17,7 +17,8 @@ CREATE TABLE tournaments (
     tournament_date DATE NOT NULL,
     status ENUM('Scheduled', 'In_Progress', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
     total_teams INT,
-    ace_pot_payout DECIMAL(10,2) DEFAULT 0.00
+    ace_pot_payout DECIMAL(10,2) DEFAULT 0.00,
+    stations INT DEFAULT 6
 );
 
 -- Main player registry
@@ -82,6 +83,7 @@ CREATE TABLE teams (
     is_ghost_team BOOLEAN DEFAULT FALSE,
     seed_number INT,
     final_place INT NULL,
+    points_earned INT NULL,
     FOREIGN KEY (tournament_id) REFERENCES tournaments(tournament_id),
     FOREIGN KEY (player1_id) REFERENCES registered_players(player_id),
     FOREIGN KEY (player2_id) REFERENCES registered_players(player_id),
