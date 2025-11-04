@@ -231,6 +231,7 @@ function App() {
             tournamentId={selectedTournament} 
             onBack={handleBackToDirectory}
             showManagementActions={false}
+            currentUser={user}
           />
         )}
         {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'manage' && (
@@ -238,6 +239,7 @@ function App() {
             tournamentId={selectedTournament} 
             onBack={handleBackToDirectory}
             showManagementActions={true}
+            currentUser={user}
           />
         )}
       </main>

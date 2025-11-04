@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Match as MatchType, Team } from '../types/tournament';
 import { getTeamName, getTeamDisplayName, findTeamById } from '../utils/teamUtils';
+import { API_BASE_URL } from '../config/api';
 
 interface MatchProps {
   match: MatchType;
@@ -9,12 +10,64 @@ interface MatchProps {
   players: any[];
   onStartMatch?: (matchId: number) => void;
   onScoreMatch?: (matchId: number, team1Score: number, team2Score: number) => void;
+  currentUser?: { role: string };
+  tournamentId?: number;
 }
 
-const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStartMatch, onScoreMatch }) => {
+const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStartMatch, onScoreMatch, currentUser, tournamentId }) => {
   const [showScorePopup, setShowScorePopup] = useState(false);
+  const [showProgressionPopup, setShowProgressionPopup] = useState(false);
   const [team1Score, setTeam1Score] = useState('');
   const [team2Score, setTeam2Score] = useState('');
+  const [winnerTarget, setWinnerTarget] = useState('');
+  const [loserTarget, setLoserTarget] = useState('');
+
+  // Initialize progression targets with match_order when popup opens
+  const openProgressionPopup = () => {
+    const winnerMatch = allMatches.find(m => m.match_id === match.winner_advances_to_match_id);
+    const loserMatch = allMatches.find(m => m.match_id === match.loser_advances_to_match_id);
+    setWinnerTarget(winnerMatch?.match_order?.toString() || '');
+    setLoserTarget(loserMatch?.match_order?.toString() || '');
+    setShowProgressionPopup(true);
+  };
+
+  const getMatchByOrder = (matchOrder: number) => {
+    return allMatches.find(m => m.match_order === matchOrder);
+  };
+
+  const handleProgressionUpdate = async () => {
+    if (!tournamentId) return;
+    
+    // Convert match_order to match_id
+    const winnerMatch = winnerTarget ? getMatchByOrder(parseInt(winnerTarget)) : null;
+    const loserMatch = loserTarget ? getMatchByOrder(parseInt(loserTarget)) : null;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches/${match.match_id}/progression`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          winner_advances_to_match_id: winnerMatch?.match_id || null,
+          loser_advances_to_match_id: loserMatch?.match_id || null
+        })
+      });
+      
+      if (response.ok) {
+        setShowProgressionPopup(false);
+        // Update match progression in parent component instead of reloading
+        if (onScoreMatch) {
+          // Trigger a refresh by calling the parent's refresh function
+          // For now, just close the popup - the changes will be visible on next navigation
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error);
+      }
+    } catch (error) {
+      console.error('Failed to update progression:', error);
+    }
+  };
 
   const handleScoreSubmit = () => {
     const score1 = parseInt(team1Score);
@@ -149,6 +202,12 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
           ✏️ Edit
         </div>
       )}
+
+      {currentUser?.role === 'Admin' && (
+        <div className="admin-overlay" onClick={openProgressionPopup}>
+          🔧 Progression
+        </div>
+      )}
       
       {showScorePopup && (
         <div className="score-popup-overlay">
@@ -177,6 +236,36 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
               <button onClick={handleScoreSubmit}>
                 {match.match_status === 'Completed' ? 'Update' : 'Submit'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProgressionPopup && (
+        <div className="score-popup-overlay">
+          <div className="score-popup" onClick={(e) => e.stopPropagation()}>
+            <h4>Edit Match Progression</h4>
+            <div className="score-input">
+              <label>Winner advances to match order:</label>
+              <input 
+                type="number" 
+                value={winnerTarget} 
+                onChange={(e) => setWinnerTarget(e.target.value)}
+                placeholder="Leave empty for none"
+              />
+            </div>
+            <div className="score-input">
+              <label>Loser advances to match order:</label>
+              <input 
+                type="number" 
+                value={loserTarget} 
+                onChange={(e) => setLoserTarget(e.target.value)}
+                placeholder="Leave empty for none"
+              />
+            </div>
+            <div className="score-buttons">
+              <button onClick={() => setShowProgressionPopup(false)}>Cancel</button>
+              <button onClick={handleProgressionUpdate}>Update</button>
             </div>
           </div>
         </div>

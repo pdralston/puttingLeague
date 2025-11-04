@@ -624,9 +624,26 @@ main {
   border-radius: 6px;
 }
 
+.admin-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 255, 149, 0.9);
+  color: #000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
 .match:hover .edit-overlay,
 .match:hover .start-overlay,
-.match:hover .score-overlay {
+.match:hover .score-overlay,
+.match:hover .admin-overlay {
   display: flex;
 }
 
@@ -919,4 +936,57 @@ main {
 .score-buttons button:last-child {
   background-color: #038549;
   color: #FFFFFF;
+}
+.admin-match-creation {
+  background: #003A1F;
+  border: 2px solid #1AFF95;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.admin-match-creation h3 {
+  color: #1AFF95;
+  margin-bottom: 15px;
+}
+
+.match-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: end;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-row label {
+  color: #1AFF95;
+  font-size: 14px;
+}
+
+.form-row select,
+.form-row input {
+  padding: 8px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background: #000;
+  color: #1AFF95;
+}
+
+.create-match-button {
+  background: #1AFF95;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.create-match-button:hover {
+  background: #00FF7F;
 }

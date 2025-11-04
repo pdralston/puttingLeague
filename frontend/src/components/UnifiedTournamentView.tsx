@@ -8,16 +8,24 @@ interface UnifiedTournamentViewProps {
   tournamentId: number;
   onBack?: () => void;
   showManagementActions?: boolean;
+  currentUser?: { role: string };
 }
 
 const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({ 
   tournamentId, 
   onBack, 
-  showManagementActions = false 
+  showManagementActions = false,
+  currentUser
 }) => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [tournamentData, setTournamentData] = useState<any>(null);
   const [tournamentStatus, setTournamentStatus] = useState<string>('');
+  const [newMatchData, setNewMatchData] = useState({
+    stage_type: 'Group_A',
+    round_type: 'Winners',
+    round_number: 0,
+    position_in_round: 0
+  });
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
 
@@ -90,6 +98,34 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     } catch (error) {
       console.error('Failed to score match:', error);
       alert('Network error: Failed to score match. Please try again.');
+    }
+  };
+
+  const handleCreateMatch = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newMatchData)
+      });
+      
+      if (response.ok) {
+        // Refresh tournament data
+        const [matches, teams, tournamentData] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
+          fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json())
+        ]);
+        setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
+        setTournamentData(tournamentData);
+        setNewMatchData({ stage_type: 'Group_A', round_type: 'Winners', round_number: 0, position_in_round: 0 });
+      } else {
+        const error = await response.json();
+        alert(error.error);
+      }
+    } catch (error) {
+      console.error('Failed to create match:', error);
     }
   };
 
@@ -236,7 +272,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       )}
       
       <div className={`tournament-content ${matchesInProgress.length > 0 ? 'with-matches-in-progress' : ''}`} style={{ position: 'relative' }}>
-        {showManagementActions && tournamentStatus === 'Scheduled' && (
+        {showManagementActions && tournamentStatus === 'Scheduled' && currentUser?.role !== 'Admin' && (
           <div className="tournament-overlay">
             <div className="overlay-content">
               <h2>Tournament Ready to Start</h2>
@@ -244,6 +280,39 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
               <button className="start-tournament-button" onClick={handleStartTournament}>
                 Start Tournament
               </button>
+            </div>
+          </div>
+        )}
+        
+        {showManagementActions && currentUser?.role === 'Admin' && (
+          <div className="admin-match-creation">
+            <h3>Create New Match</h3>
+            <div className="match-form">
+              <div className="form-row">
+                <label>Stage Type:</label>
+                <select value={newMatchData.stage_type} onChange={(e) => setNewMatchData({...newMatchData, stage_type: e.target.value})}>
+                  <option value="Group_A">Group A</option>
+                  <option value="Group_B">Group B</option>
+                  <option value="Finals">Finals</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Round Type:</label>
+                <select value={newMatchData.round_type} onChange={(e) => setNewMatchData({...newMatchData, round_type: e.target.value})}>
+                  <option value="Winners">Winners</option>
+                  <option value="Losers">Losers</option>
+                  <option value="Championship">Championship</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Round Number:</label>
+                <input type="number" value={newMatchData.round_number} onChange={(e) => setNewMatchData({...newMatchData, round_number: parseInt(e.target.value)})} />
+              </div>
+              <div className="form-row">
+                <label>Position in Round:</label>
+                <input type="number" value={newMatchData.position_in_round} onChange={(e) => setNewMatchData({...newMatchData, position_in_round: parseInt(e.target.value)})} />
+              </div>
+              <button onClick={handleCreateMatch} className="create-match-button">Create Match</button>
             </div>
           </div>
         )}
@@ -285,6 +354,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                 title="Winners Bracket"
                 onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
                 onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+                currentUser={currentUser}
+                tournamentId={tournamentId}
               />
             )}
             {losersMatches.length > 0 && (
@@ -296,6 +367,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                 title="Losers Bracket"
                 onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
                 onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+                currentUser={currentUser}
+                tournamentId={tournamentId}
               />
             )}
           </div>
@@ -309,6 +382,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
                 title="🏆 Championship"
                 onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
                 onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+                currentUser={currentUser}
+                tournamentId={tournamentId}
               />
             </div>
           )}

@@ -828,3 +828,75 @@ def create_championship_round(tournament_id):
         'championship_match_1': championship_1.match_id,
         'message': 'Championship match created'
     }), 201
+
+@matches_bp.route('/api/tournaments/<int:tournament_id>/matches/<int:match_id>/progression', methods=['PUT'])
+@require_auth(['Admin'])
+def update_match_progression(tournament_id, match_id):
+    """Admin endpoint to manually adjust match progression targets"""
+    data = request.get_json()
+    
+    match = Match.query.filter_by(tournament_id=tournament_id, match_id=match_id).first()
+    if not match:
+        return jsonify({'error': 'Match not found'}), 404
+    
+    # Update winner progression target
+    if 'winner_advances_to_match_id' in data:
+        target_match_id = data['winner_advances_to_match_id']
+        if target_match_id is not None:
+            target_match = Match.query.filter_by(tournament_id=tournament_id, match_id=target_match_id).first()
+            if not target_match:
+                return jsonify({'error': 'Target match not found'}), 404
+        match.winner_advances_to_match_id = target_match_id
+    
+    # Update loser progression target
+    if 'loser_advances_to_match_id' in data:
+        target_match_id = data['loser_advances_to_match_id']
+        if target_match_id is not None:
+            target_match = Match.query.filter_by(tournament_id=tournament_id, match_id=target_match_id).first()
+            if not target_match:
+                return jsonify({'error': 'Target match not found'}), 404
+        match.loser_advances_to_match_id = target_match_id
+    
+    db.session.commit()
+    
+    return jsonify({
+        'match_id': match.match_id,
+        'winner_advances_to_match_id': match.winner_advances_to_match_id,
+        'loser_advances_to_match_id': match.loser_advances_to_match_id,
+        'message': 'Match progression updated'
+    })
+@matches_bp.route('/api/tournaments/<int:tournament_id>/matches', methods=['POST'])
+@require_auth(['Admin'])
+def create_match(tournament_id):
+    """Admin endpoint to create a new match"""
+    data = request.get_json()
+    
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    
+    # Get the next match_id and match_order
+    existing_matches = Match.query.filter_by(tournament_id=tournament_id).all()
+    next_match_id = max([m.match_id for m in existing_matches], default=0) + 1
+    next_match_order = max([m.match_order for m in existing_matches], default=0) + 1
+    
+    new_match = Match(
+        tournament_id=tournament_id,
+        match_id=next_match_id,
+        stage_type=data.get('stage_type', 'Group_A'),
+        round_type=data.get('round_type', 'Winners'),
+        round_number=data.get('round_number', 0),
+        position_in_round=data.get('position_in_round', 0),
+        stage_match_number=data.get('stage_match_number', next_match_order),
+        match_order=next_match_order,
+        match_status='Pending'
+    )
+    
+    db.session.add(new_match)
+    db.session.commit()
+    
+    return jsonify({
+        'match_id': new_match.match_id,
+        'match_order': new_match.match_order,
+        'message': 'Match created successfully'
+    }), 201

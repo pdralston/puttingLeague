@@ -10,9 +10,11 @@ interface BracketProps {
   title: string;
   onStartMatch?: (matchId: number) => void;
   onScoreMatch?: (matchId: number, team1Score: number, team2Score: number) => void;
+  currentUser?: { role: string };
+  tournamentId?: number;
 }
 
-const Bracket: React.FC<BracketProps> = ({ matches, allMatches, teams, players, title, onStartMatch, onScoreMatch }) => {
+const Bracket: React.FC<BracketProps> = ({ matches, allMatches, teams, players, title, onStartMatch, onScoreMatch, currentUser, tournamentId }) => {
   const rounds = matches.reduce((acc, match) => {
     if (!acc[match.round_number]) acc[match.round_number] = [];
     acc[match.round_number].push(match);
@@ -27,7 +29,17 @@ const Bracket: React.FC<BracketProps> = ({ matches, allMatches, teams, players, 
           <div key={round} className="round">
             <h4>Round {round}</h4>
             {roundMatches.map(match => (
-              <Match key={match.match_id} match={match} allMatches={allMatches} teams={teams} players={players} onStartMatch={onStartMatch} onScoreMatch={onScoreMatch} />
+              <Match 
+                key={match.match_id} 
+                match={match} 
+                allMatches={allMatches} 
+                teams={teams} 
+                players={players} 
+                onStartMatch={onStartMatch} 
+                onScoreMatch={onScoreMatch}
+                currentUser={currentUser}
+                tournamentId={tournamentId}
+              />
             ))}
           </div>
         ))}
