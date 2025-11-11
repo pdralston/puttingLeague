@@ -313,17 +313,16 @@ def _create_bracket_matches(tournament_id, teams):
             match_id += 1
     
     # Create losers bracket matches (only if needed)
-    if len(teams) - byes_needed > 1:
-        lb_rounds = (wb_rounds - 1) * 2
-        for round_num in range(lb_rounds):
-            matches_in_round = 1 if round_num == 0 else bracket_size >> ((round_num + 2) // 2 + 1)
-            for pos in range(matches_in_round):
-                matches.append(Match(
-                    tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
-                    round_type='Losers', round_number=round_num, position_in_round=pos,
-                    stage_match_number=match_id, match_order=match_id, match_status='Pending'
-                ))
-                match_id += 1
+    lb_rounds = (wb_rounds - 1) * 2
+    for round_num in range(lb_rounds):
+        matches_in_round = bracket_size >> ((round_num + 2) // 2 + 1)
+        for pos in range(matches_in_round):
+            matches.append(Match(
+                tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
+                round_type='Losers', round_number=round_num, position_in_round=pos,
+                stage_match_number=match_id, match_order=match_id, match_status='Pending'
+            ))
+            match_id += 1
     
     # Create championship match
     championship = Match(
@@ -340,11 +339,10 @@ def _set_advancement_paths(matches):
     wb_matches = [m for m in matches if m.round_type == 'Winners']
     lb_matches = [m for m in matches if m.round_type == 'Losers']
     championship = next(m for m in matches if m.round_type == 'Championship')
-    wb_rounds = max(m.round_number for m in wb_matches) + 1
     
     # Winners bracket progression
     for match in wb_matches:
-        if match.round_number < wb_rounds - 1:
+        if match.round_number < max(m.round_number for m in wb_matches):
             next_pos = match.position_in_round // 2
             next_match = next((m for m in wb_matches 
                              if m.round_number == match.round_number + 1 
@@ -354,30 +352,52 @@ def _set_advancement_paths(matches):
         else:
             match.winner_advances_to_match_id = championship.match_id
     
-    # Losers bracket progression
+    # Group losers matches by round
+    lb_by_round = {}
     for match in lb_matches:
-        if match.round_number < len(lb_matches) and match.round_number < (wb_rounds - 1) * 2 - 1:
-            next_pos = match.position_in_round // 2
-            next_match = next((m for m in lb_matches 
-                             if m.round_number == match.round_number + 1 
-                             and m.position_in_round == next_pos), None)
-            if next_match:
-                match.winner_advances_to_match_id = next_match.match_id
-        else:
-            match.winner_advances_to_match_id = championship.match_id
+        if match.round_number not in lb_by_round:
+            lb_by_round[match.round_number] = []
+        lb_by_round[match.round_number].append(match)
     
-    # Set losers bracket drops
-    for match in wb_matches:
-        if match.round_number == 0:
-            lb_match = next((m for m in lb_matches if m.round_number == 0), None)
-            if lb_match:
-                match.loser_advances_to_match_id = lb_match.match_id
-        elif match.round_number > 0:
-            lb_round = (match.round_number - 1) * 2 + 1
-            lb_match = next((m for m in lb_matches 
-                           if m.round_number == lb_round and m.position_in_round == match.position_in_round), None)
-            if lb_match:
-                match.loser_advances_to_match_id = lb_match.match_id
+    # Sort each round by match_id
+    for round_num in lb_by_round:
+        lb_by_round[round_num].sort(key=lambda x: x.match_id)
+    
+    # Track match capacity
+    match_capacity = {match.match_id: 2 for match in lb_matches}
+    match_assigned = {match.match_id: 0 for match in lb_matches}
+    
+    # Set LB internal progressions and track assignments
+    for round_num in sorted(lb_by_round.keys()):
+        current_round = lb_by_round[round_num]
+        next_round_num = round_num + 1
+        
+        if next_round_num in lb_by_round:
+            next_round = lb_by_round[next_round_num]
+            for i, match in enumerate(current_round):
+                target_match = next_round[i % len(next_round)]
+                match.winner_advances_to_match_id = target_match.match_id
+                match_assigned[target_match.match_id] += 1
+        else:
+            for match in current_round:
+                match.winner_advances_to_match_id = championship.match_id
+    
+    # WB losers drop to available LB slots
+    for wb_match in sorted(wb_matches, key=lambda x: x.match_id):
+        if wb_match.round_number == max(m.round_number for m in wb_matches):
+            # Final WB round drops to final LB round
+            target_round = max(lb_by_round.keys())
+        else:
+            target_round = wb_match.round_number
+            
+        if target_round in lb_by_round:
+            target_matches = lb_by_round[target_round]
+            for target_match in target_matches:
+                if match_assigned[target_match.match_id] < match_capacity[target_match.match_id]:
+                    wb_match.loser_advances_to_match_id = target_match.match_id
+                    match_assigned[target_match.match_id] += 1
+                    break
+
 
 def _seed_teams_and_handle_byes(matches, teams):
     """Seed teams into first round and handle bye advancement"""
