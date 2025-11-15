@@ -296,7 +296,6 @@ def _create_bracket_matches(tournament_id, teams):
     """Create all bracket matches (winners, losers, championship)"""
     bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     wb_rounds = int(math.log2(bracket_size))
-    byes_needed = bracket_size - len(teams)
     
     matches = []
     match_id = 1
@@ -313,9 +312,15 @@ def _create_bracket_matches(tournament_id, teams):
             match_id += 1
     
     # Create losers bracket matches (only if needed)
-    lb_rounds = (wb_rounds - 1) * 2
-    for round_num in range(lb_rounds):
-        matches_in_round = bracket_size >> ((round_num + 2) // 2 + 1)
+    lb_matches_needed = bracket_size - 2
+    round_num = 0
+    lb_matches_last_round = 0
+    while lb_matches_needed > 0:
+        if lb_matches_last_round > 1 and lb_matches_last_round%2 != 0:
+            lb_matches_needed += 1
+        winner_matches_in_round = bracket_size >> (round_num + 1)
+        matches_in_round = winner_matches_in_round >> 1 if round_num == 0 else max(math.floor((winner_matches_in_round + lb_matches_last_round) / 2), 1)
+        lb_matches_last_round = 0
         for pos in range(matches_in_round):
             matches.append(Match(
                 tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
@@ -323,6 +328,9 @@ def _create_bracket_matches(tournament_id, teams):
                 stage_match_number=match_id, match_order=match_id, match_status='Pending'
             ))
             match_id += 1
+            lb_matches_last_round += 1
+            lb_matches_needed -= 1
+        round_num += 1
     
     # Create championship match
     championship = Match(
@@ -436,12 +444,20 @@ def _seed_teams_and_handle_byes(matches, teams):
             first_round[i].match_status = 'Scheduled'
             team_idx += 1
     
-    # Handle losers bracket byes
+    # Handle losers bracket byes - REVERT TO ORIGINAL WITH ONE FIX
     for lb_match in lb_matches:
         if lb_match.round_number in [0, 1]:
-            feeding_matches = [m for m in matches if m.winner_advances_to_match_id == lb_match.match_id or m.loser_advances_to_match_id == lb_match.match_id]
-            if len(feeding_matches) == 1:
-                feeding_matches[0].loser_advances_to_match_id = lb_match.winner_advances_to_match_id
+            feeding_matches = [m for m in matches 
+                            if (m.winner_advances_to_match_id == lb_match.match_id or 
+                                m.loser_advances_to_match_id == lb_match.match_id) 
+                            and m not in bye_matches_to_remove]
+            
+            if len(feeding_matches) <= 1:  # This is the only change from your original
+                if len(feeding_matches) == 1:
+                    if feeding_matches[0].loser_advances_to_match_id == lb_match.match_id:
+                        feeding_matches[0].loser_advances_to_match_id = lb_match.winner_advances_to_match_id
+                    else:
+                        feeding_matches[0].winner_advances_to_match_id = lb_match.winner_advances_to_match_id
                 bye_matches_to_remove.append(lb_match)
     
     # Remove bye matches
