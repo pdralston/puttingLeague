@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import AdminAudit from './AdminAudit';
 
 interface User {
   user_id: number;
@@ -13,6 +14,7 @@ interface AdminProps {
 }
 
 const Admin: React.FC<AdminProps> = ({ currentUser }) => {
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'audit'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -141,122 +143,147 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
 
   return (
     <div className="admin-container">
-      <h2>User Management</h2>
-      
-      {currentUser.role === 'Admin' && (
-        <div className="admin-actions">
-          <button onClick={() => setShowCreateForm(true)} className="create-button">
-            Create New User
+      <div className="admin-tabs">
+        <button 
+          className={activeAdminTab === 'users' ? 'active' : ''}
+          onClick={() => setActiveAdminTab('users')}
+        >
+          User Management
+        </button>
+        {currentUser.role === 'Admin' && (
+          <button 
+            className={activeAdminTab === 'audit' ? 'active' : ''}
+            onClick={() => setActiveAdminTab('audit')}
+          >
+            Tournament Audit
           </button>
-          <button onClick={handleResetData} className="reset-button">
-            Reset All Data
-          </button>
-        </div>
-      )}
-
-      {showCreateForm && (
-        <div className="user-form">
-          <h3>Create New User</h3>
-          <form onSubmit={handleCreateUser}>
-            <input
-              type="text"
-              placeholder="Username"
-              value={formData.username}
-              onChange={(e) => setFormData({...formData, username: e.target.value})}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              required
-            />
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
-            >
-              <option value="Director">Director</option>
-              <option value="Admin">Admin</option>
-            </select>
-            <div className="form-buttons">
-              <button type="submit">Create</button>
-              <button type="button" onClick={() => setShowCreateForm(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {editingUser && (
-        <div className="user-form">
-          <h3>Edit User</h3>
-          <form onSubmit={handleUpdateUser}>
-            <input
-              type="text"
-              placeholder="Username"
-              value={formData.username}
-              onChange={(e) => setFormData({...formData, username: e.target.value})}
-              required
-            />
-            <input
-              type="password"
-              placeholder="New Password (leave blank to keep current)"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-            />
-            {currentUser.role === 'Admin' && (
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
-              >
-                <option value="Director">Director</option>
-                <option value="Admin">Admin</option>
-              </select>
-            )}
-            <div className="form-buttons">
-              <button type="submit">Update</button>
-              <button type="button" onClick={() => setEditingUser(null)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="users-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Role</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentUser.role === 'Admin' ? users.map(user => (
-              <tr key={user.user_id}>
-                <td>{user.username}</td>
-                <td>{user.role}</td>
-                <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                <td>
-                  <button onClick={() => startEdit(user)} className="edit-button">Edit</button>
-                  {user.user_id !== currentUser.user_id && (
-                    <button onClick={() => handleDeleteUser(user.user_id)} className="delete-button">Delete</button>
-                  )}
-                </td>
-              </tr>
-            )) : (
-              <tr>
-                <td>{currentUser.username}</td>
-                <td>{currentUser.role}</td>
-                <td>-</td>
-                <td>
-                  <button onClick={() => startEdit(currentUser as User)} className="edit-button">Edit Profile</button>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        )}
       </div>
+
+      {activeAdminTab === 'users' && (
+        <div className="users-management">
+          <h2>User Management</h2>
+          
+          {currentUser.role === 'Admin' && (
+            <div className="admin-actions">
+              <button onClick={() => setShowCreateForm(true)} className="create-button">
+                Create New User
+              </button>
+              <button onClick={handleResetData} className="reset-button">
+                Reset All Data
+              </button>
+            </div>
+          )}
+
+          {showCreateForm && (
+            <div className="user-form">
+              <h3>Create New User</h3>
+              <form onSubmit={handleCreateUser}>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                />
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                >
+                  <option value="Director">Director</option>
+                  <option value="Admin">Admin</option>
+                </select>
+                <div className="form-buttons">
+                  <button type="submit">Create</button>
+                  <button type="button" onClick={() => setShowCreateForm(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {editingUser && (
+            <div className="user-form">
+              <h3>Edit User</h3>
+              <form onSubmit={handleUpdateUser}>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="New Password (leave blank to keep current)"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                />
+                {currentUser.role === 'Admin' && (
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  >
+                    <option value="Director">Director</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                )}
+                <div className="form-buttons">
+                  <button type="submit">Update</button>
+                  <button type="button" onClick={() => setEditingUser(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div className="users-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentUser.role === 'Admin' ? users.map(user => (
+                  <tr key={user.user_id}>
+                    <td>{user.username}</td>
+                    <td>{user.role}</td>
+                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <button onClick={() => startEdit(user)} className="edit-button">Edit</button>
+                      {user.user_id !== currentUser.user_id && (
+                        <button onClick={() => handleDeleteUser(user.user_id)} className="delete-button">Delete</button>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td>{currentUser.username}</td>
+                    <td>{currentUser.role}</td>
+                    <td>-</td>
+                    <td>
+                      <button onClick={() => startEdit(currentUser as User)} className="edit-button">Edit Profile</button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeAdminTab === 'audit' && currentUser.role === 'Admin' && (
+        <AdminAudit user={currentUser} />
+      )}
     </div>
   );
 };

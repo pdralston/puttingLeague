@@ -7,6 +7,7 @@ import './components/TournamentDirectory.css';
 import './components/AcePotTracker.css';
 import './components/TournamentCreation.css';
 import './components/Admin.css';
+import './components/AdminAudit.css';
 import './components/LandingPage.css';
 
 import LandingPage from './components/LandingPage';
@@ -17,6 +18,7 @@ import PlayerManager from './components/PlayerManager';
 import Leaderboard from './components/Leaderboard';
 import AcePotTracker from './components/AcePotTracker';
 import Admin from './components/Admin';
+import AdminAudit from './components/AdminAudit';
 import Login from './components/Login';
 import { API_BASE_URL } from './config/api';
 
