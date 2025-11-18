@@ -1,7 +1,35 @@
 .admin-container {
   padding: 20px;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.admin-tabs {
+  display: flex;
+  border-bottom: 2px solid #004d2a;
+  margin-bottom: 20px;
+}
+
+.admin-tabs button {
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #1AFF95;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.admin-tabs button:hover {
+  background-color: #004d2a;
+}
+
+.admin-tabs button.active {
+  border-bottom-color: #1AFF95;
+  color: #1AFF95;
+  font-weight: bold;
+  background-color: #004d2a;
 }
 
 .admin-actions {

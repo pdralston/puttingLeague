@@ -62,34 +62,36 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
       return 'TBD';
     }
     
-    if (feedingMatches.length === 1) {
-      // Only one feeding match - determine which slot gets which team
-      const feedingMatch = feedingMatches[0];
-      const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
-      
-      // For matches with one team already seeded, the empty slot gets the feeding match result
-      if (match.team1_id && !match.team2_id) {
-        return isTeam1 ? getTeamName(teams, match.team1_id) : `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
-      } else if (!match.team1_id && match.team2_id) {
-        return isTeam1 ? `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}` : getTeamName(teams, match.team2_id);
-      } else {
-        // Neither team seeded yet
-        if (isTeam1) {
-          return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
-        } else {
-          if (match.round_type === 'Losers') {
-            return 'Bye/Seed';
-          } else {
-            return 'Bye';
-          }
-        }
-      }
+    // Find which feeding matches are still pending
+    const pendingMatches = feedingMatches.filter(m => m.match_status !== 'Completed');
+    
+    if (pendingMatches.length === 0) {
+      return 'TBD'; // All feeding matches complete, team should be assigned
     }
     
-    // Multiple feeding matches - assign based on position
-    const feedingMatch = isTeam1 ? feedingMatches[0] : feedingMatches[1];
-    const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
-    return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+    if (feedingMatches.length === 1) {
+      const feedingMatch = feedingMatches[0];
+      const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
+      return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+    }
+    
+    // Multiple feeding matches - show the first pending one for team1, second for team2
+    if (isTeam1 && pendingMatches.length > 0) {
+      const feedingMatch = pendingMatches[0];
+      const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
+      return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+    } else if (!isTeam1 && pendingMatches.length > 1) {
+      const feedingMatch = pendingMatches[1];
+      const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
+      return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+    } else if (!isTeam1 && pendingMatches.length === 1) {
+      // Only one pending match left, show it for team2 if team1 is already filled
+      const feedingMatch = pendingMatches[0];
+      const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
+      return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+    }
+    
+    return 'TBD';
   };
 
   const winner = getWinner();
