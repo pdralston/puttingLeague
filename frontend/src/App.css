@@ -275,51 +275,110 @@ main {
 .match {
   border: 2px solid #1AFF95;
   border-radius: 8px;
-  padding: 8px;
+  padding: 0;
   background: #FFFFFF;
-  min-width: 160px;
+  min-width: 300px;
   box-shadow: 0 2px 8px rgba(26, 255, 149, 0.2);
   position: relative;
+  overflow: hidden;
+}
+
+.match.scheduled,
+.match.in-progress {
+  background: #FFFFFF;
+}
+
+.match.completed {
+  background: #ECEDFF;
+}
+
+.match.pending {
+  background: #BAFFDF;
 }
 
 .match-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 12px;
   color: #00381F;
-  margin-bottom: 4px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #A8AEFB;
+  padding: 8px 12px;
+  background: inherit;
 }
 
 .match-number {
   font-weight: bold;
-  color: #00381F;
+  color: #073C24;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 15pt;
+}
+
+.match-status-text {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 15pt;
+  font-weight: normal;
+}
+
+.match-status-text.scheduled {
+  color: #242B5C;
+}
+
+.match-status-text.in-progress {
+  color: #00CE6E;
+}
+
+.match-status-text.completed {
+  color: #242B5C;
+}
+
+.match .team-separator {
+  color: #1AFF95;
+}
+
+.match.completed .team-separator {
+  color: #959CCC;
+}
+
+.match .station-bubble {
+  background-color: #1AFF95;
+  color: #073C24;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .team-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  padding: 0 12px 8px 12px;
+  width: 80%;
 }
 
 .team {
-  padding: 6px 8px;
-  border-bottom: 1px solid #A8AEFB;
+  padding: 4px 0;
+  border-bottom: none;
   font-size: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #000000;
+  color: #14172C;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 600;
+  text-align: left;
 }
 
-.team:last-child {
-  border-bottom: none;
+.team:not(:last-child) {
+  border-bottom: 1px solid #C6C7D3;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
 }
 
 .team.winner {
-  background-color: #1AFF95;
-  font-weight: bold;
+  background-color: transparent;
+  font-weight: 700;
 }
 
 .bracket-view .team .team-name {

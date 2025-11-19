@@ -101,32 +101,70 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     console.log('Match 1 status:', match.match_status, 'onScoreMatch exists:', !!onScoreMatch);
   }
 
+  const formatTeamName = (teamName: string) => {
+    return teamName.split(' & ').map((name, index, array) => (
+      <span key={index}>
+        {name}
+        {index < array.length - 1 && <span className="team-separator"> & </span>}
+      </span>
+    ));
+  };
+
+  const renderMatchHeader = () => {
+    const matchNumber = `Match ${match.match_order}`;
+    
+    switch (match.match_status) {
+      case 'Scheduled':
+        return (
+          <>
+            <span className="match-number">{matchNumber}</span>
+            <span className="match-status-text scheduled">Scheduled</span>
+          </>
+        );
+      case 'In_Progress':
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="match-number">{matchNumber}</span>
+              {match.station_assignment && (
+                <span className="station-bubble">Station {match.station_assignment}</span>
+              )}
+            </div>
+            <span className="match-status-text in-progress">In Progress</span>
+          </>
+        );
+      case 'Completed':
+        return (
+          <>
+            <span className="match-number">{matchNumber} | <span className="match-status-text completed">Completed</span></span>
+            <span className="match-status-text score">SCORE</span>
+          </>
+        );
+      case 'Pending':
+      default:
+        return <span className="match-number">{matchNumber}</span>;
+    }
+  };
+
   return (
-    <div className="match">
+    <div className={`match ${match.match_status.toLowerCase().replace('_', '-')}`}>
       <div className="match-header">
-        <span className="match-number">Match {match.match_order}</span>
-        {match.match_status === 'In_Progress' && match.station_assignment && (
-          <span className="station-bubble">Station {match.station_assignment}</span>
-        )}
-        <span className="match-score">Score</span>
+        {renderMatchHeader()}
       </div>
-      <div className={`team ${winner && winner === match.team1_id ? 'winner' : ''}`}>
-        <span className="team-name">{getTeamDisplay(match.team1_id, true)}</span>
-        {match.team1_score !== undefined && match.team1_score !== null && (
-          <span className="team-score">{match.team1_score}</span>
-        )}
-      </div>
-      <div className={`team ${winner && winner === match.team2_id ? 'winner' : ''}`}>
-        <span className="team-name">{getTeamDisplay(match.team2_id, false)}</span>
-        {match.team2_score !== undefined && match.team2_score !== null && (
-          <span className="team-score">{match.team2_score}</span>
-        )}
-      </div>
-      {match.match_status !== 'Pending' && (
-        <div className={`match-status ${match.match_status.toLowerCase().replace('_', '-')}`}>
-          {match.match_status}
+      <div className="team-container">
+        <div className={`team ${winner && winner === match.team1_id ? 'winner' : ''}`}>
+          <span className="team-name">{formatTeamName(getTeamDisplay(match.team1_id, true))}</span>
+          {match.team1_score !== undefined && match.team1_score !== null && (
+            <span className="team-score">{match.team1_score}</span>
+          )}
         </div>
-      )}
+        <div className={`team ${winner && winner === match.team2_id ? 'winner' : ''}`}>
+          <span className="team-name">{formatTeamName(getTeamDisplay(match.team2_id, false))}</span>
+          {match.team2_score !== undefined && match.team2_score !== null && (
+            <span className="team-score">{match.team2_score}</span>
+          )}
+        </div>
+      </div>
       {match.match_status === 'Scheduled' && onStartMatch && !isByeMatch() && (
         <div className="start-overlay" onClick={() => onStartMatch(match.match_id)}>
           ▶ Start
