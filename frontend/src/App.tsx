@@ -100,17 +100,17 @@ function App() {
           <h1>DG-Putt</h1>
           <nav>
             <button 
-              className="home-button"
+              className="home-button active"
               onClick={() => setActiveTab('landing')}
             >
-              Home
+              HOME
             </button>
-            <button onClick={() => handleNavigateFromLanding('players')}>Players</button>
-            <button onClick={() => handleNavigateFromLanding('leaderboard')}>Leaderboard</button>
-            <button onClick={() => handleNavigateFromLanding('tournaments')}>Tournaments</button>
-            <button onClick={() => handleNavigateFromLanding('ace-pot')}>Ace Pot</button>
+            <button onClick={() => handleNavigateFromLanding('players')}>PLAYERS</button>
+            <button onClick={() => handleNavigateFromLanding('leaderboard')}>LEADERBOARD</button>
+            <button onClick={() => handleNavigateFromLanding('tournaments')}>TOURNAMENTS</button>
+            <button onClick={() => handleNavigateFromLanding('ace-pot')}>ACE POT</button>
             {(user.role === 'Admin' || user.role === 'Director') && (
-              <button onClick={() => setActiveTab('admin')}>Admin</button>
+              <button onClick={() => setActiveTab('admin')}>ADMIN</button>
             )}
             <div className="auth-section">
               {user.role === 'Viewer' ? (
@@ -139,13 +139,13 @@ function App() {
     <div className="App">
       {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
       <header className="App-header">
-        <h1>DG Putt</h1>
+        <h1>DG-Putt</h1>
         <nav>
           <button 
             className="home-button"
             onClick={() => setActiveTab('landing')}
           >
-            Home
+            HOME
           </button>
           <button 
             className={activeTab === 'players' ? 'active' : ''}
@@ -157,13 +157,13 @@ function App() {
               }
             }}
           >
-            Players
+            PLAYERS
           </button>
           <button 
             className={activeTab === 'leaderboard' ? 'active' : ''}
             onClick={() => setActiveTab('leaderboard')}
           >
-            Leaderboard
+            LEADERBOARD
           </button>
           <button 
             className={activeTab === 'tournaments' ? 'active' : ''}
@@ -173,20 +173,20 @@ function App() {
               setTournamentMode('view');
             }}
           >
-            Tournaments
+            TOURNAMENTS
           </button>
           <button 
             className={activeTab === 'ace-pot' ? 'active' : ''}
             onClick={() => setActiveTab('ace-pot')}
           >
-            Ace Pot
+            ACE POT
           </button>
           {(user.role === 'Admin' || user.role === 'Director') && (
             <button 
               className={activeTab === 'admin' ? 'active' : ''}
               onClick={() => setActiveTab('admin')}
             >
-              Admin
+              ADMIN
             </button>
           )}
           <div className="auth-section">
