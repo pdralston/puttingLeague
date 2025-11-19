@@ -86,51 +86,82 @@ function App() {
     setTournamentMode('view');
   };
 
-  const handleNavigateFromLanding = (tab: 'players' | 'leaderboard' | 'tournaments' | 'ace-pot') => {
-    setActiveTab(tab);
-    setSelectedTournament(null);
-    setTournamentMode('view');
-  };
+  const renderHeader = () => (
+    <header className="App-header">
+      <h1>DG Putt</h1>
+      <nav>
+        <button 
+          className={activeTab === 'landing' ? 'active' : ''}
+          onClick={() => setActiveTab('landing')}
+        >
+          HOME
+        </button>
+        <button 
+          className={activeTab === 'players' ? 'active' : ''}
+          onClick={() => {
+            if (activeTab === 'players') {
+              setPlayerManagerKey(prev => prev + 1);
+            } else {
+              setActiveTab('players');
+            }
+          }}
+        >
+          PLAYERS
+        </button>
+        <button 
+          className={activeTab === 'leaderboard' ? 'active' : ''}
+          onClick={() => setActiveTab('leaderboard')}
+        >
+          LEADERBOARD
+        </button>
+        <button 
+          className={activeTab === 'tournaments' ? 'active' : ''}
+          onClick={() => {
+            setActiveTab('tournaments');
+            setSelectedTournament(null);
+            setTournamentMode('view');
+          }}
+        >
+          TOURNAMENTS
+        </button>
+        <button 
+          className={activeTab === 'ace-pot' ? 'active' : ''}
+          onClick={() => setActiveTab('ace-pot')}
+        >
+          ACE POT
+        </button>
+        {(user.role === 'Admin' || user.role === 'Director') && (
+          <button 
+            className={activeTab === 'admin' ? 'active' : ''}
+            onClick={() => setActiveTab('admin')}
+          >
+            ADMIN
+          </button>
+        )}
+        <div className="auth-section">
+          {user.role === 'Viewer' ? (
+            <button className="login-button" onClick={() => setShowLogin(true)}>
+              Login
+            </button>
+          ) : (
+            <>
+              <button className="logout-button" onClick={handleLogout}>
+                Logout
+              </button>
+              <span className="user-info">{user.username}</span>
+            </>
+          )}
+        </div>
+      </nav>
+    </header>
+  );
 
   if (activeTab === 'landing') {
     return (
       <div className="App">
         {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
-        <header className="App-header">
-          <h1>DG-Putt</h1>
-          <nav>
-            <button 
-              className="home-button active"
-              onClick={() => setActiveTab('landing')}
-            >
-              HOME
-            </button>
-            <button onClick={() => handleNavigateFromLanding('players')}>PLAYERS</button>
-            <button onClick={() => handleNavigateFromLanding('leaderboard')}>LEADERBOARD</button>
-            <button onClick={() => handleNavigateFromLanding('tournaments')}>TOURNAMENTS</button>
-            <button onClick={() => handleNavigateFromLanding('ace-pot')}>ACE POT</button>
-            {(user.role === 'Admin' || user.role === 'Director') && (
-              <button onClick={() => setActiveTab('admin')}>ADMIN</button>
-            )}
-            <div className="auth-section">
-              {user.role === 'Viewer' ? (
-                <button className="login-button" onClick={() => setShowLogin(true)}>
-                  Login
-                </button>
-              ) : (
-                <button className="logout-button" onClick={handleLogout}>
-                  Logout
-                </button>
-              )}
-              {user.role === 'Viewer' ? (
-                <></>
-              ) : (
-                <span className="user-info">{user.username}</span>
-              )}
-            </div>
-          </nav>
-        </header>
-        <LandingPage onNavigate={handleNavigateFromLanding} />
+        {renderHeader()}
+        <LandingPage onNavigate={(tab) => setActiveTab(tab)} />
       </div>
     );
   }
@@ -138,75 +169,7 @@ function App() {
   return (
     <div className="App">
       {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
-      <header className="App-header">
-        <h1>DG-Putt</h1>
-        <nav>
-          <button 
-            className="home-button"
-            onClick={() => setActiveTab('landing')}
-          >
-            HOME
-          </button>
-          <button 
-            className={activeTab === 'players' ? 'active' : ''}
-            onClick={() => {
-              if (activeTab === 'players') {
-                setPlayerManagerKey(prev => prev + 1);
-              } else {
-                setActiveTab('players');
-              }
-            }}
-          >
-            PLAYERS
-          </button>
-          <button 
-            className={activeTab === 'leaderboard' ? 'active' : ''}
-            onClick={() => setActiveTab('leaderboard')}
-          >
-            LEADERBOARD
-          </button>
-          <button 
-            className={activeTab === 'tournaments' ? 'active' : ''}
-            onClick={() => {
-              setActiveTab('tournaments');
-              setSelectedTournament(null);
-              setTournamentMode('view');
-            }}
-          >
-            TOURNAMENTS
-          </button>
-          <button 
-            className={activeTab === 'ace-pot' ? 'active' : ''}
-            onClick={() => setActiveTab('ace-pot')}
-          >
-            ACE POT
-          </button>
-          {(user.role === 'Admin' || user.role === 'Director') && (
-            <button 
-              className={activeTab === 'admin' ? 'active' : ''}
-              onClick={() => setActiveTab('admin')}
-            >
-              ADMIN
-            </button>
-          )}
-          <div className="auth-section">
-            {user.role === 'Viewer' ? (
-              <button className="login-button" onClick={() => setShowLogin(true)}>
-                Login
-              </button>
-            ) : (
-              <button className="logout-button" onClick={handleLogout}>
-                Logout
-              </button>
-            )}
-            {user.role === 'Viewer' ? (
-              <></>
-            ) : (
-              <span className="user-info">{user.username}</span>
-            )}
-          </div>
-        </nav>
-      </header>
+      {renderHeader()}
       <main>
         {activeTab === 'players' && <PlayerManager key={playerManagerKey} userRole={user.role} />}
         {activeTab === 'leaderboard' && <Leaderboard />}
