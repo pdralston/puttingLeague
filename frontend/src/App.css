@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 .App {
   text-align: center;
@@ -32,25 +33,28 @@
 
 .App-header nav {
   display: flex;
-  gap: 10px;
+  gap: 20px;
+  align-items: center;
 }
 
 .App-header nav button {
-  background: #1AFF95;
-  color: #000;
+  background: transparent;
+  color: #FFFFFF;
   border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
+  padding: 10px 0;
   cursor: pointer;
-  font-weight: bold;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12pt;
+  font-weight: 400;
 }
 
 .App-header nav button.active {
-  background: #00FF7F;
+  color: #1AFF95;
+  font-weight: 700;
 }
 
 .App-header nav button:hover {
-  background: #00FF7F;
+  color: #1AFF95;
 }
 
 main {
@@ -765,27 +769,31 @@ main {
 .auth-section {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
 }
 
 .user-info {
-  color: #1AFF95;
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12pt;
+  text-transform: none;
+  font-family: 'Roboto', sans-serif;
 }
 
-.login-button, .logout-button {
-  background-color: #1AFF95;
-  color: #00381F;
+.auth-section .login-button, 
+.auth-section .logout-button {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
   border: none;
   padding: 8px 16px;
-  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12pt;
+  font-weight: 400;
 }
 
-.login-button:hover, .logout-button:hover {
-  background-color: #038549;
-  color: #FFFFFF;
+.auth-section .login-button:hover, 
+.auth-section .logout-button:hover {
+  color: #1AFF95;
 }
 
 .login-overlay {
