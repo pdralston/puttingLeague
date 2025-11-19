@@ -88,7 +88,7 @@ function App() {
 
   const renderHeader = () => (
     <header className="App-header">
-      <h1>DG Putt</h1>
+      <h1>DG-Putt</h1>
       <nav>
         <button 
           className={activeTab === 'landing' ? 'active' : ''}

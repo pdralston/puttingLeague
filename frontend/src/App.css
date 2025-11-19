@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@600&display=swap');
 
 .App {
   text-align: center;
@@ -65,27 +66,39 @@ main {
 
 .back-button-container {
   position: fixed;
-  top: 70px;
+  top: calc(var(--header-height, 70px) + 36px);
   left: 20px;
   z-index: 999;
   padding: 0;
   margin: 0;
+  display: flex;
+  align-items: baseline;
 }
 
 .back-button {
-  background: #1AFF95;
-  color: #000;
+  background: transparent;
+  color: #585858;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 0 !important;
+  border-radius: 0;
   cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
+  font-family: 'Roboto', sans-serif !important;
+  font-size: 14pt !important;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.back-button:hover {
-  background: #00FF7F;
+.back-button img {
+  width: 20px;
+  height: 20px;
 }
+
+.tournament-content.with-matches-in-progress .back-button {
+  color: #585858;
+}
+
 /* Tournament overlay styles */
 .tournament-overlay {
   position: absolute;
@@ -456,20 +469,24 @@ main {
 
 .matches-in-progress {
   position: fixed;
-  top: 70px;
+  top: var(--header-height, 70px);
   left: 0;
   right: 0;
   z-index: 998;
-  background: rgba(26, 255, 149, 0.1);
+  background: #F1F6F4;
   border-bottom: 1px solid #1AFF95;
   padding: 15px 20px;
   backdrop-filter: blur(5px);
 }
 
 .matches-in-progress h3 {
-  color: #1AFF95;
+  background: linear-gradient(to right, #003A1F, #00A056);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin: 0 0 15px 0;
-  font-size: 1.2rem;
+  font-size: 32pt;
+  font-family: 'Bebas Neue', cursive;
 }
 
 .active-matches {
@@ -479,27 +496,61 @@ main {
 }
 
 .active-match {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(26, 255, 149, 0.3);
-  border-radius: 6px;
-  padding: 12px;
+  background: #FFFFFF;
+  border-radius: 8px;
   min-width: 200px;
+  overflow: hidden;
+}
+
+.active-match {
+  background: #FFFFFF;
+  border-radius: 8px;
+  min-width: 300px;
+  overflow: hidden;
 }
 
 .active-match .station {
-  color: #1AFF95;
+  background: #1AFF95;
+  color: #073C24;
   font-weight: bold;
-  font-size: 1.25rem;
-  margin-bottom: 5px;
+  font-size: 22pt;
+  font-family: 'Bebas Neue', cursive;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-match .station svg {
+  width: 20px;
+  height: 26px;
 }
 
 .active-match .teams {
-  color: white;
-  font-size: 1.2rem;
+  padding: 8px 12px;
+  width: 90%;
+}
+
+.active-match .team-row {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 600;
+  color: #14172C;
+  padding: 4px 0;
+  text-align: left;
+}
+
+.active-match .team-row:not(:last-child) {
+  border-bottom: 1px solid #C6C7D3;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.active-match .team-separator {
+  color: #1AFF95;
 }
 
 .tournament-content {
-  margin-top: 40px;
+  margin-top: -30px;
 }
 
 .loading {
@@ -750,7 +801,7 @@ main {
 }
 
 .tournament-content.with-matches-in-progress {
-  margin-top: 100px;
+  margin-top: calc(var(--matches-bar-height, 50px) - 50px);
 }
 
 .player-name {

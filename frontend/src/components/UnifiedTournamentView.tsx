@@ -200,11 +200,57 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     return '';
   };
 
+  const matchesInProgress = getMatchesInProgress();
+  
+  useEffect(() => {
+    const updateHeights = () => {
+      // Update header height
+      const header = document.querySelector('.App-header');
+      if (header) {
+        const headerHeight = header.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
+      }
+      
+      // Update matches bar height
+      const matchesBar = document.querySelector('.matches-in-progress');
+      if (matchesBar) {
+        const height = matchesBar.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--matches-bar-height', `${height}px`);
+      }
+    };
+
+    // Initial calculation
+    updateHeights();
+    
+    // Watch for resize changes
+    const header = document.querySelector('.App-header');
+    const matchesBar = document.querySelector('.matches-in-progress');
+    
+    const resizeObserver = new ResizeObserver(updateHeights);
+    if (header) resizeObserver.observe(header);
+    if (matchesBar) resizeObserver.observe(matchesBar);
+    
+    // Also listen for window resize
+    window.addEventListener('resize', updateHeights);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateHeights);
+    };
+  }, [matchesInProgress.length]);
+
   if (!tournament) {
     return <div className="loading">Loading tournament...</div>;
   }
 
-  const matchesInProgress = getMatchesInProgress();
+  const formatTeamName = (teamName: string) => {
+    return teamName.split(' & ').map((name, index, array) => (
+      <span key={index}>
+        {name}
+        {index < array.length - 1 && <span className="team-separator"> & </span>}
+      </span>
+    ));
+  };
   const winnersMatches = tournament.matches.filter(m => m.round_type === 'Winners');
   const losersMatches = tournament.matches.filter(m => m.round_type === 'Losers');
   const championshipMatches = tournament.matches.filter(m => m.round_type === 'Championship');
@@ -217,9 +263,17 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           <div className="active-matches">
             {matchesInProgress.map(match => (
               <div key={match.match_id} className="active-match">
-                <div className="station">Station {match.station_assignment}</div>
+                <div className="station">
+                  Station {match.station_assignment}
+                  <img src="/dg-basket-grn.svg" alt="Basket" />
+                </div>
                 <div className="teams">
-                  {getTeamDisplayName(match.team1_id)} vs {getTeamDisplayName(match.team2_id)}
+                  <div className="team-row">
+                    {formatTeamName(getTeamDisplayName(match.team1_id))}
+                  </div>
+                  <div className="team-row">
+                    {formatTeamName(getTeamDisplayName(match.team2_id))}
+                  </div>
                 </div>
               </div>
             ))}
@@ -230,7 +284,8 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       {onBack && (
         <div className="back-button-container">
           <button className="back-button" onClick={onBack}>
-            ← Back to Tournaments
+            <img src="/back-arrow-circle.png" alt="Back" />
+            Back to Tournaments
           </button>
         </div>
       )}
