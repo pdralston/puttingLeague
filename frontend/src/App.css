@@ -102,7 +102,7 @@ main {
 /* Tournament overlay styles */
 .tournament-overlay {
   position: absolute;
-  top: -20px;
+  top: -60px;
   left: -20px;
   right: -20px;
   bottom: -20px;
@@ -273,8 +273,7 @@ main {
 }
 
 .match {
-  border: 2px solid #1AFF95;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 0;
   background: #FFFFFF;
   min-width: 300px;
@@ -289,7 +288,7 @@ main {
 }
 
 .match.completed {
-  background: #ECEDFF;
+  background: #C6CAFF;
 }
 
 .match.pending {
@@ -313,6 +312,11 @@ main {
   font-size: 15pt;
 }
 
+.match.completed .match-header .match-number {
+     color: #242B5C;
+     opacity: 0.5;
+   }
+
 .match-status-text {
   font-family: 'Bebas Neue', cursive;
   font-size: 15pt;
@@ -327,12 +331,13 @@ main {
   color: #00CE6E;
 }
 
-.match-status-text.completed {
-  color: #242B5C;
-}
-
 .match .team-separator {
   color: #1AFF95;
+}
+
+.trophy-icon {
+  margin-left: 8px;
+  font-size: 16px;
 }
 
 .match.completed .team-separator {
@@ -354,7 +359,7 @@ main {
 
 .team-container {
   padding: 0 12px 8px 12px;
-  width: 80%;
+  width: 90%;
 }
 
 .team {
@@ -368,10 +373,16 @@ main {
   font-family: 'Roboto Condensed', sans-serif;
   font-weight: 600;
   text-align: left;
+  text-transform: uppercase;
+}
+
+.team:first-child {
+  border-top: 1px solid #b0b2c1;
+  padding-top: 8px;
 }
 
 .team:not(:last-child) {
-  border-bottom: 1px solid #C6C7D3;
+  border-bottom: 1px solid #b0b2c1;
   padding-bottom: 8px;
   margin-bottom: 8px;
 }
@@ -533,19 +544,19 @@ main {
   right: 0;
   z-index: 998;
   background: #F1F6F4;
-  border-bottom: 1px solid #1AFF95;
   padding: 15px 20px;
-  backdrop-filter: blur(5px);
 }
 
-.matches-in-progress h3 {
-  background: linear-gradient(to right, #003A1F, #00A056);
+.matches-in-progress h5 {
+  background: linear-gradient(25deg, #003A1F, #00A056);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0 0 15px 0;
   font-size: 32pt;
   font-family: 'Bebas Neue', cursive;
+  display: inline-block;
+  font-weight: normal;
 }
 
 .active-matches {
@@ -556,33 +567,27 @@ main {
 
 .active-match {
   background: #FFFFFF;
-  border-radius: 8px;
-  min-width: 200px;
-  overflow: hidden;
-}
-
-.active-match {
-  background: #FFFFFF;
-  border-radius: 8px;
+  border-radius: 12px;
   min-width: 300px;
   overflow: hidden;
+  box-shadow: 0 4px 26.3px rgba(0, 0, 0, 0.1);
 }
 
 .active-match .station {
   background: #1AFF95;
   color: #073C24;
   font-weight: bold;
-  font-size: 22pt;
-  font-family: 'Bebas Neue', cursive;
+  font-size: 18pt;
+  font-family: 'Bebas Neue';
   padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.active-match .station svg {
+.active-match .station img {
   width: 20px;
-  height: 26px;
+  height: 16pt;
 }
 
 .active-match .teams {
@@ -596,6 +601,7 @@ main {
   color: #14172C;
   padding: 4px 0;
   text-align: left;
+  text-transform: uppercase;
 }
 
 .active-match .team-row:not(:last-child) {
@@ -609,7 +615,7 @@ main {
 }
 
 .tournament-content {
-  margin-top: -30px;
+  margin-top: 40px;
 }
 
 .loading {
@@ -622,10 +628,11 @@ main {
   min-width: 300px;
 }
 
-.bracket h3 {
+.bracket h1 {
   color: #1AFF95;
   margin-bottom: 15px;
-  font-size: 1.2em;
+  text-align: left;
+  font-weight: 400;
 }
 
 .station-bubble {
@@ -860,7 +867,7 @@ main {
 }
 
 .tournament-content.with-matches-in-progress {
-  margin-top: calc(var(--matches-bar-height, 50px) - 50px);
+  margin-top: calc(var(--matches-bar-height, 50px) - 40px);
 }
 
 .player-name {

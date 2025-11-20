@@ -259,7 +259,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     <div className="tournament-view">
       {matchesInProgress.length > 0 && (
         <div className="matches-in-progress">
-          <h3>Matches in Progress</h3>
+          <h5>Matches in Progress</h5>
           <div className="active-matches">
             {matchesInProgress.map(match => (
               <div key={match.match_id} className="active-match">

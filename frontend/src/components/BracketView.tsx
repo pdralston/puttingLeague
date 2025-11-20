@@ -86,7 +86,7 @@ const BracketView: React.FC<BracketViewProps> = ({ matches, teams, title, allMat
 
   return (
     <div className="bracket-view">
-      <h3>{title}</h3>
+      <h1>{title}</h1>
       <div className="rounds">
         {Object.entries(rounds)
           .sort(([a], [b]) => parseInt(a) - parseInt(b))

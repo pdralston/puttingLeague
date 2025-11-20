@@ -153,13 +153,19 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
       </div>
       <div className="team-container">
         <div className={`team ${winner && winner === match.team1_id ? 'winner' : ''}`}>
-          <span className="team-name">{formatTeamName(getTeamDisplay(match.team1_id, true))}</span>
+          <span className="team-name">
+            {formatTeamName(getTeamDisplay(match.team1_id, true))}
+            {winner && winner === match.team1_id && <span className="trophy-icon">🏆</span>}
+          </span>
           {match.team1_score !== undefined && match.team1_score !== null && (
             <span className="team-score">{match.team1_score}</span>
           )}
         </div>
         <div className={`team ${winner && winner === match.team2_id ? 'winner' : ''}`}>
-          <span className="team-name">{formatTeamName(getTeamDisplay(match.team2_id, false))}</span>
+          <span className="team-name">
+            {formatTeamName(getTeamDisplay(match.team2_id, false))}
+            {winner && winner === match.team2_id && <span className="trophy-icon">🏆</span>}
+          </span>
           {match.team2_score !== undefined && match.team2_score !== null && (
             <span className="team-score">{match.team2_score}</span>
           )}
