@@ -19,7 +19,6 @@
   background-color: #000000;
   padding: 15px 20px;
   color: #FFFFFF;
-  border-bottom: 3px solid #1AFF95;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -83,23 +82,39 @@ main {
   border-radius: 0;
   cursor: pointer;
   font-family: 'Roboto', sans-serif !important;
-  font-size: 14pt !important;
+  font-size: 12pt !important;
   font-weight: 400;
   display: flex;
   align-items: center;
   gap: 8px;
+  filter: invert(1);
 }
 
 .back-button img {
-  width: 20px;
-  height: 20px;
+  width: 15px;
+  height: 15px;
 }
 
-.tournament-content.with-matches-in-progress .back-button {
-  color: #585858;
+.matches-in-progress ~ .back-button-container .back-button {
+  filter: none !important;
 }
 
-/* Tournament overlay styles */
+/* Accent text styling */
+.accent-text {
+  position: fixed;
+  right: 0;
+  top: 55vh;
+  transform: translateY(-10%) translateX(40%) rotate(-90deg);
+  transform-origin: center;
+  font-size: 20vh;
+  color: #EFF9F4;
+  z-index: 1;
+  font-family: 'Bebas Neue', cursive;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.1;
+}
 .tournament-overlay {
   position: absolute;
   top: -60px;
@@ -240,8 +255,16 @@ main {
 }
 
 .championship-section {
-  min-width: 300px;
+  width: auto;
+  min-width: fit-content;
   align-self: flex-start;
+  border: 3px solid #FFD700;
+  border-radius: 12px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(26, 255, 149, 0.05));
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
+  height: auto;
+  min-height: fit-content;
 }
 
 .bracket-view {
@@ -260,6 +283,10 @@ main {
   gap: 20px;
 }
 
+.championship-section .rounds {
+  flex-direction: column;
+}
+
 .round {
   display: flex;
   flex-direction: column;
@@ -268,8 +295,9 @@ main {
 
 .round h4 {
   color: #EFF9F4;
-  font-size: 0.9em;
+  font-size: 1.2em;
   margin-bottom: 8px;
+  text-align: left;
 }
 
 .match {
@@ -303,6 +331,7 @@ main {
   color: #00381F;
   padding: 8px 12px;
   background: inherit;
+  width: 90%;
 }
 
 .match-number {
@@ -310,11 +339,11 @@ main {
   color: #073C24;
   font-family: 'Bebas Neue', cursive;
   font-size: 15pt;
+  opacity: 0.5;
 }
 
 .match.completed .match-header .match-number {
      color: #242B5C;
-     opacity: 0.5;
    }
 
 .match-status-text {
@@ -358,12 +387,12 @@ main {
 }
 
 .team-container {
-  padding: 0 12px 8px 12px;
+  padding: 0 12px 4px 12px;
   width: 90%;
 }
 
 .team {
-  padding: 4px 0;
+  padding: 0px 0;
   border-bottom: none;
   font-size: 18px;
   display: flex;
@@ -377,14 +406,26 @@ main {
 }
 
 .team:first-child {
-  border-top: 1px solid #b0b2c1;
-  padding-top: 8px;
+  border-top: 1px solid #C6C7D3;
+  border-bottom: 1px solid #C6C7D3;
+  padding-top: 4px;
+  margin-bottom: 4px;
 }
 
-.team:not(:last-child) {
-  border-bottom: 1px solid #b0b2c1;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+.match.pending .team:first-child {
+  border-top-color: #71CAA1;
+  border-bottom-color: #71CAA1;
+}
+
+.match.scheduled .team:first-child,
+.match.in-progress .team:first-child {
+  border-top-color: #C6C7D3;
+  border-bottom-color: #C6C7D3;
+}
+
+.match.completed .team:first-child {
+  border-top-color: rgba(64, 68, 112, 0.2);
+  border-bottom-color: rgba(64, 68, 112, 0.2);
 }
 
 .team.winner {
@@ -408,7 +449,7 @@ main {
   color: #00381F;
 }
 
-.match-status {
+.match-status-display {
   font-style: italic;
   text-align: center;
   padding: 4px;
@@ -511,13 +552,6 @@ main {
   }
 }
 
-.championship-section {
-  border: 3px solid #FFD700;
-  border-radius: 12px;
-  padding: 20px;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(26, 255, 149, 0.05));
-  box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
-}
 /* Tournament Bracket Specific Styles */
 .tournament-bracket {
   padding: 20px;
@@ -579,7 +613,7 @@ main {
   font-weight: bold;
   font-size: 18pt;
   font-family: 'Bebas Neue';
-  padding: 8px 12px;
+  padding: 8px 15px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -591,23 +625,23 @@ main {
 }
 
 .active-match .teams {
-  padding: 8px 12px;
   width: 90%;
+  margin: 0 auto;
 }
 
 .active-match .team-row {
   font-family: 'Roboto Condensed', sans-serif;
   font-weight: 600;
   color: #14172C;
-  padding: 4px 0;
+  padding: 0px 0;
   text-align: left;
   text-transform: uppercase;
 }
 
 .active-match .team-row:not(:last-child) {
   border-bottom: 1px solid #C6C7D3;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 0px;
+  margin-bottom: 0px;
 }
 
 .active-match .team-separator {
@@ -615,6 +649,7 @@ main {
 }
 
 .tournament-content {
+  padding-left: 40px;
   margin-top: 40px;
 }
 
@@ -630,9 +665,13 @@ main {
 
 .bracket h1 {
   color: #1AFF95;
-  margin-bottom: 15px;
+  margin-bottom: 0px;
   text-align: left;
   font-weight: 400;
+}
+
+.championship-section .bracket h1 {
+  text-align: center;
 }
 
 .station-bubble {
@@ -992,7 +1031,6 @@ main {
 
 .score-popup {
   background: #FFFFFF;
-  border: 2px solid #1AFF95;
   border-radius: 8px;
   padding: 20px;
   min-width: 300px;
