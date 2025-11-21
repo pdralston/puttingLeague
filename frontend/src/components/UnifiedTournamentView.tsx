@@ -368,17 +368,32 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
         
         <div className="brackets-container">
           <div className="main-brackets">
-            {winnersMatches.length > 0 && (
-              <Bracket 
-                matches={winnersMatches}
-                allMatches={tournament.matches}
-                teams={tournament.teams}
-                players={[]}
-                title="Winners Bracket"
-                onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
-                onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
-              />
-            )}
+            <div className="winners-championship-container">
+              {winnersMatches.length > 0 && (
+                <Bracket 
+                  matches={winnersMatches}
+                  allMatches={tournament.matches}
+                  teams={tournament.teams}
+                  players={[]}
+                  title="Winners Bracket"
+                  onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+                  onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+                />
+              )}
+              {championshipMatches.filter(m => m.team1_id && m.team2_id).length > 0 && (
+                <div className="championship-section">
+                  <Bracket 
+                    matches={championshipMatches}
+                    allMatches={tournament.matches}
+                    teams={tournament.teams}
+                    players={[]}
+                    title="🏆 Championship"
+                    onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
+                    onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
+                  />
+                </div>
+              )}
+            </div>
             {losersMatches.length > 0 && (
               <Bracket 
                 matches={losersMatches}
@@ -391,19 +406,6 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
               />
             )}
           </div>
-          {championshipMatches.filter(m => m.team1_id && m.team2_id).length > 0 && (
-            <div className="championship-section">
-              <Bracket 
-                matches={championshipMatches}
-                allMatches={tournament.matches}
-                teams={tournament.teams}
-                players={[]}
-                title="🏆 Championship"
-                onScoreMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleScoreMatch : undefined}
-                onStartMatch={showManagementActions && tournamentStatus === 'In_Progress' ? handleStartMatch : undefined}
-              />
-            </div>
-          )}
         </div>
       </div>
       
