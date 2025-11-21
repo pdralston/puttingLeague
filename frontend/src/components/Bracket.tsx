@@ -21,7 +21,7 @@ const Bracket: React.FC<BracketProps> = ({ matches, allMatches, teams, players, 
 
   return (
     <div className="bracket">
-      <h3>{title}</h3>
+      <h1>{title}</h1>
       <div className="rounds">
         {Object.entries(rounds).map(([round, roundMatches]) => (
           <div key={round} className="round">

@@ -20,8 +20,15 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
   const [tournamentStatus, setTournamentStatus] = useState<string>('');
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
+  const [accentText, setAccentText] = useState('');
+
+  const accentTexts = ['Shoot Well', 'Bang Chains', 'Aim Straight', 'Double Up'];
 
   useEffect(() => {
+    // Set random accent text
+    const randomText = accentTexts[Math.floor(Math.random() * accentTexts.length)];
+    setAccentText(randomText);
+
     Promise.all([
       fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
       fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
@@ -257,9 +264,10 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
   return (
     <div className="tournament-view">
+      <div className="accent-text">{accentText}</div>
       {matchesInProgress.length > 0 && (
         <div className="matches-in-progress">
-          <h3>Matches in Progress</h3>
+          <h5>Matches in Progress</h5>
           <div className="active-matches">
             {matchesInProgress.map(match => (
               <div key={match.match_id} className="active-match">
