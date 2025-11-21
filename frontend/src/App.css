@@ -260,6 +260,12 @@ main {
   flex: 1;
 }
 
+.winners-championship-container {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
 .championship-section {
   width: auto;
   min-width: fit-content;
@@ -271,6 +277,7 @@ main {
   box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
   height: auto;
   min-height: fit-content;
+  margin-top: 138px;
 }
 
 .bracket-view {
