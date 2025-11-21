@@ -21,6 +21,10 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [acePotBalance, setAcePotBalance] = useState<number>(0);
   const [accentText, setAccentText] = useState('');
+  const [showScorePopup, setShowScorePopup] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [team1Score, setTeam1Score] = useState('');
+  const [team2Score, setTeam2Score] = useState('');
 
   const accentTexts = ['Shoot Well', 'Bang Chains', 'Aim Straight', 'Double Up'];
 
@@ -207,6 +211,27 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     return '';
   };
 
+  const handleActiveMatchClick = (match: Match) => {
+    if (!showManagementActions) return;
+    setSelectedMatch(match);
+    setTeam1Score(match.team1_score?.toString() || '');
+    setTeam2Score(match.team2_score?.toString() || '');
+    setShowScorePopup(true);
+  };
+
+  const handleScoreSubmit = async () => {
+    if (!selectedMatch) return;
+    const score1 = parseInt(team1Score);
+    const score2 = parseInt(team2Score);
+    if (!isNaN(score1) && !isNaN(score2)) {
+      await handleScoreMatch(selectedMatch.match_id, score1, score2);
+      setShowScorePopup(false);
+      setTeam1Score('');
+      setTeam2Score('');
+      setSelectedMatch(null);
+    }
+  };
+
   const matchesInProgress = getMatchesInProgress();
   
   useEffect(() => {
@@ -270,7 +295,11 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           <h5>Matches in Progress</h5>
           <div className="active-matches">
             {matchesInProgress.map(match => (
-              <div key={match.match_id} className="active-match">
+              <div 
+                key={match.match_id} 
+                className={`active-match ${showManagementActions ? 'clickable' : ''}`}
+                onClick={() => handleActiveMatchClick(match)}
+              >
                 <div className="station">
                   Station {match.station_assignment}
                   <img src="/dg-basket-grn.svg" alt="Basket" />
@@ -377,6 +406,36 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
           )}
         </div>
       </div>
+      
+      {showScorePopup && selectedMatch && (
+        <div className="score-popup-overlay">
+          <div className="score-popup" onClick={(e) => e.stopPropagation()}>
+            <h4>Score Match {selectedMatch.match_order}</h4>
+            <div className="score-input">
+              <label>{getTeamDisplayName(selectedMatch.team1_id)}</label>
+              <input 
+                type="number" 
+                value={team1Score} 
+                onChange={(e) => setTeam1Score(e.target.value)}
+                min="0"
+              />
+            </div>
+            <div className="score-input">
+              <label>{getTeamDisplayName(selectedMatch.team2_id)}</label>
+              <input 
+                type="number" 
+                value={team2Score} 
+                onChange={(e) => setTeam2Score(e.target.value)}
+                min="0"
+              />
+            </div>
+            <div className="score-buttons">
+              <button onClick={() => setShowScorePopup(false)}>Cancel</button>
+              <button onClick={handleScoreSubmit}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

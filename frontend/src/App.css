@@ -99,14 +99,20 @@ main {
   filter: none !important;
 }
 
-/* Accent text styling */
+.active-match.clickable {
+  cursor: pointer;
+}
+
+.active-match.clickable:hover {
+  background: #F8F8F8;
+}
 .accent-text {
   position: fixed;
   right: 0;
   top: 55vh;
   transform: translateY(-10%) translateX(40%) rotate(-90deg);
   transform-origin: center;
-  font-size: 20vh;
+  font-size: 15vh;
   color: #EFF9F4;
   z-index: 1;
   font-family: 'Bebas Neue', cursive;
