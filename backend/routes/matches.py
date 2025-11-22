@@ -40,6 +40,18 @@ def start_match(tournament_id, match_id):
     
     try:
         db.session.commit()
+        
+        # Emit WebSocket event for real-time updates
+        from flask import current_app
+        socketio = current_app.extensions.get('socketio')
+        if socketio:
+            socketio.emit('match_updated', {
+                'tournament_id': tournament_id,
+                'match_id': match.match_id,
+                'status': match.match_status,
+                'station': match.station_assignment
+            }, room=f'tournament_{tournament_id}')
+        
         return jsonify({
             'match_id': match.match_id,
             'status': match.match_status,
@@ -86,6 +98,21 @@ def score_match(tournament_id, match_id):
     
     try:
         db.session.commit()
+        
+        # Emit WebSocket event for real-time updates
+        from flask import current_app
+        socketio = current_app.extensions.get('socketio')
+        if socketio:
+            socketio.emit('match_updated', {
+                'tournament_id': tournament_id,
+                'match_id': match.match_id,
+                'status': match.match_status,
+                'team1_score': match.team1_score,
+                'team2_score': match.team2_score,
+                'winner_team_id': winner_team_id,
+                'is_rescore': is_rescore
+            }, room=f'tournament_{tournament_id}')
+        
         return jsonify({
             'match_id': match.match_id,
             'status': match.match_status,

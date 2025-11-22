@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 import os
 from datetime import datetime
@@ -8,6 +9,7 @@ from database import db
 load_dotenv()
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 def create_admin_user():
     """Create default admin user if it doesn't exist"""
@@ -66,6 +68,31 @@ app.register_blueprint(admin_audit_bp)
 def health_check():
     return jsonify({"status": "DG Putt API is running", "timestamp": datetime.now().isoformat()})
 
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
+@socketio.on('join_tournament')
+def handle_join_tournament(data):
+    tournament_id = data.get('tournament_id')
+    if tournament_id:
+        from flask_socketio import join_room
+        join_room(f'tournament_{tournament_id}')
+        print(f'Client joined tournament {tournament_id}')
+
+@socketio.on('leave_tournament')
+def handle_leave_tournament(data):
+    tournament_id = data.get('tournament_id')
+    if tournament_id:
+        from flask_socketio import leave_room
+        leave_room(f'tournament_{tournament_id}')
+        print(f'Client left tournament {tournament_id}')
+
 if __name__ == '__main__':
     # Test database connection
     try:
@@ -78,4 +105,4 @@ if __name__ == '__main__':
         print(f"Database connection failed: {e}")
     
     # Run in debug mode for local development
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
