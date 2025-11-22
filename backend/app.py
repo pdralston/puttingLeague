@@ -7,8 +7,8 @@ from datetime import datetime
 from database import db
 
 load_dotenv()
-# Load production environment if it exists (for EB deployment)
-if os.path.exists('.env.production'):
+# Load production environment only when deployed (not in local development)
+if os.getenv('AWS_EXECUTION_ENV') and os.path.exists('.env.production'):
     load_dotenv('.env.production', override=True)
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
