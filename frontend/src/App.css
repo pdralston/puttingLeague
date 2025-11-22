@@ -354,7 +354,6 @@ main {
 }
 
 .match-number {
-  font-weight: bold;
   color: #073C24;
   font-family: 'Bebas Neue', cursive;
   font-size: 15pt;
@@ -454,8 +453,6 @@ main {
   font-size: 2.0rem;
   text-align: left;
 }
-
-
 
 .team-score {
   text-align: right;

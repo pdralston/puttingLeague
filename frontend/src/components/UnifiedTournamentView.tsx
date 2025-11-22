@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { API_BASE_URL } from '../config/api';
 import Bracket from './Bracket';
 import { Tournament, Match } from '../types/tournament';
 import { getTeamName } from '../utils/teamUtils';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface UnifiedTournamentViewProps {
   tournamentId: number;
@@ -28,17 +29,15 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
 
   const accentTexts = ['Shoot Well', 'Bang Chains', 'Aim Straight', 'Double Up'];
 
-  useEffect(() => {
-    // Set random accent text
-    const randomText = accentTexts[Math.floor(Math.random() * accentTexts.length)];
-    setAccentText(randomText);
-
-    Promise.all([
-      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json()),
-      fetch(`${API_BASE_URL}/api/ace-pot`, { credentials: 'include' }).then(res => res.json())
-    ]).then(([matches, teams, tournamentData, acePotData]) => {
+  const fetchTournamentData = useCallback(async () => {
+    try {
+      const [matches, teams, tournamentData, acePotData] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/ace-pot`, { credentials: 'include' }).then(res => res.json())
+      ]);
+      
       setTournament({ id: tournamentId, name: `Tournament ${tournamentId}`, teams, matches });
       setTournamentData(tournamentData);
       setTournamentStatus(tournamentData.status);
@@ -46,8 +45,25 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
       
       const totalBalance = acePotData.reduce((sum: number, entry: any) => sum + entry.amount, 0);
       setAcePotBalance(totalBalance);
-    });
+    } catch (error) {
+      console.error('Failed to fetch tournament data:', error);
+    }
   }, [tournamentId]);
+
+  // WebSocket for real-time updates
+  useWebSocket({
+    tournamentId,
+    onMatchUpdate: fetchTournamentData
+  });
+
+  useEffect(() => {
+    // Set random accent text
+    const randomText = accentTexts[Math.floor(Math.random() * accentTexts.length)];
+    setAccentText(randomText);
+
+    // Initial data fetch
+    fetchTournamentData();
+  }, [fetchTournamentData]);
 
   const getMatchesInProgress = (): Match[] => {
     if (!tournament) return [];
