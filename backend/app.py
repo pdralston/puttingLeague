@@ -7,9 +7,15 @@ from datetime import datetime
 from database import db
 
 load_dotenv()
+# Load production environment if it exists (for EB deployment)
+if os.path.exists('.env.production'):
+    load_dotenv('.env.production', override=True)
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Get WebSocket allowed origins from environment
+websocket_origins = os.getenv('WEBSOCKET_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+socketio = SocketIO(app, cors_allowed_origins=websocket_origins)
 
 def create_admin_user():
     """Create default admin user if it doesn't exist"""
