@@ -35,7 +35,7 @@ const BracketView: React.FC<BracketViewProps> = ({ matches, teams, title, allMat
       return `Team ${teamId}`;
     }
     
-    if (!match) return 'TBD';
+    if (!match) return 'ERROR';
     
     // Find matches that feed into this match
     const feedingMatches = (allMatches || matches).filter(m => 
@@ -44,7 +44,7 @@ const BracketView: React.FC<BracketViewProps> = ({ matches, teams, title, allMat
     ).sort((a, b) => a.match_order - b.match_order);
     
     if (feedingMatches.length === 0) {
-      return 'TBD';
+      return 'ERROR';
     }
     
     if (feedingMatches.length === 1) {
@@ -62,9 +62,9 @@ const BracketView: React.FC<BracketViewProps> = ({ matches, teams, title, allMat
           return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
         } else {
           if (match.round_type === 'Losers') {
-            return 'Bye/Seed';
+            return 'BYE';
           } else {
-            return 'Bye';
+            return 'BYE';
           }
         }
       }

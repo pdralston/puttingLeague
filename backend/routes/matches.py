@@ -293,7 +293,7 @@ def _handle_championship_rescore(match, tournament_id, winner_team_id, loser_tea
 @require_auth(['Admin', 'Director'])
 def generate_matches(tournament_id):
     data = request.get_json() or {}
-    stations = data.get('stations', 6)
+    stations = data.get('stations', 4)
     
     tournament = Tournament.query.get(tournament_id)
     if not tournament:
@@ -306,7 +306,8 @@ def generate_matches(tournament_id):
     if len(teams) < 4:
         return jsonify({'error': 'Need at least 4 teams'}), 400
     
-    matches = _create_bracket_matches(tournament_id, teams)
+    matches = _create_winners_bracket_matches(tournament_id, teams)
+    _create_loser_bracket_matches(tournament_id, matches, len(teams))
     _set_advancement_paths(matches)
     _seed_teams_and_handle_byes(matches, teams)
     _set_match_order(matches)
@@ -319,7 +320,7 @@ def generate_matches(tournament_id):
     
     return jsonify({'tournament_id': tournament_id, 'matches_created': len(matches)}), 201
 
-def _create_bracket_matches(tournament_id, teams):
+def _create_winners_bracket_matches(tournament_id, teams):
     """Create all bracket matches (winners, losers, championship)"""
     bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     wb_rounds = int(math.log2(bracket_size))
@@ -337,37 +338,51 @@ def _create_bracket_matches(tournament_id, teams):
                 stage_match_number=match_id, match_order=match_id, match_status='Pending'
             ))
             match_id += 1
-    
-    # Create losers bracket matches (only if needed)
-    lb_matches_needed = bracket_size - 2
-    round_num = 0
-    lb_matches_last_round = 0
-    while lb_matches_needed > 0:
-        if lb_matches_last_round > 1 and lb_matches_last_round%2 != 0:
-            lb_matches_needed += 1
-        winner_matches_in_round = bracket_size >> (round_num + 1)
-        matches_in_round = winner_matches_in_round >> 1 if round_num == 0 else max(math.floor((winner_matches_in_round + lb_matches_last_round) / 2), 1)
-        lb_matches_last_round = 0
+    return matches
+
+def _create_loser_bracket_matches(tournament_id, matches, team_count):
+    wb_round = 0
+    lb_round = 0
+    prev_round_count = 0
+    match_id = matches[len(matches)-1].match_id + 1
+    bracket_size = 1 << (team_count - 1).bit_length() if team_count & (team_count - 1) else team_count
+    loserMatchesNeeded = bracket_size - 2
+
+    # Standard alternating pattern
+    while (loserMatchesNeeded > 0):
+        if lb_round == 0 or lb_round % 2 == 1:  # odd rounds get WB losers
+            matches_in_round = math.ceil(((bracket_size >> (wb_round + 1)) + prev_round_count) /2)
+            wb_round += 1
+            prev_round_count = matches_in_round
+
+        else:  # even rounds resolve LB matches
+            matches_in_round = math.ceil(prev_round_count / 2)
+            prev_round_count = matches_in_round
+
         for pos in range(matches_in_round):
             matches.append(Match(
-                tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
-                round_type='Losers', round_number=round_num, position_in_round=pos,
-                stage_match_number=match_id, match_order=match_id, match_status='Pending'
+                tournament_id=tournament_id,
+                match_id=match_id,
+                stage_type='Group_A',
+                round_type='Losers',
+                round_number=lb_round,
+                position_in_round=pos + 1,
+                stage_match_number=match_id,
+                match_order=match_id,
+                match_status='Pending'
             ))
+            loserMatchesNeeded -= 1
             match_id += 1
-            lb_matches_last_round += 1
-            lb_matches_needed -= 1
-        round_num += 1
-    
-    # Create championship match
+        lb_round += 1
+    _create_championship_match(tournament_id=tournament_id, match_id=match_id, matches=matches)
+
+def _create_championship_match(tournament_id, match_id, matches):
     championship = Match(
         tournament_id=tournament_id, match_id=match_id, stage_type='Finals',
         round_type='Championship', round_number=0, position_in_round=0,
         stage_match_number=match_id, match_order=match_id, match_status='Pending'
     )
     matches.append(championship)
-    
-    return matches
 
 def _set_advancement_paths(matches):
     """Set winner and loser advancement paths for all matches"""
@@ -417,14 +432,13 @@ def _set_advancement_paths(matches):
             for match in current_round:
                 match.winner_advances_to_match_id = championship.match_id
     
-    # WB losers drop to available LB slots
+    # WB losers drop to LB (only odd rounds accept WB losers)
     for wb_match in sorted(wb_matches, key=lambda x: x.match_id):
         if wb_match.round_number == max(m.round_number for m in wb_matches):
-            # Final WB round drops to final LB round
             target_round = max(lb_by_round.keys())
         else:
-            target_round = wb_match.round_number
-            
+            target_round = 0 if wb_match.round_number == 0 else wb_match.round_number * 2 - 1
+
         if target_round in lb_by_round:
             target_matches = lb_by_round[target_round]
             for target_match in target_matches:
@@ -437,7 +451,6 @@ def _set_advancement_paths(matches):
 def _seed_teams_and_handle_byes(matches, teams):
     """Seed teams into first round and handle bye advancement"""
     wb_matches = [m for m in matches if m.round_type == 'Winners']
-    lb_matches = [m for m in matches if m.round_type == 'Losers']
     bracket_size = 1 << (len(teams) - 1).bit_length() if len(teams) & (len(teams) - 1) else len(teams)
     byes_needed = bracket_size - len(teams)
     
@@ -471,25 +484,33 @@ def _seed_teams_and_handle_byes(matches, teams):
             first_round[i].match_status = 'Scheduled'
             team_idx += 1
     
-    # Handle losers bracket byes - REVERT TO ORIGINAL WITH ONE FIX
-    for lb_match in lb_matches:
-        if lb_match.round_number in [0, 1]:
-            feeding_matches = [m for m in matches 
-                            if (m.winner_advances_to_match_id == lb_match.match_id or 
-                                m.loser_advances_to_match_id == lb_match.match_id) 
-                            and m not in bye_matches_to_remove]
-            
-            if len(feeding_matches) <= 1:  # This is the only change from your original
-                if len(feeding_matches) == 1:
-                    if feeding_matches[0].loser_advances_to_match_id == lb_match.match_id:
-                        feeding_matches[0].loser_advances_to_match_id = lb_match.winner_advances_to_match_id
-                    else:
-                        feeding_matches[0].winner_advances_to_match_id = lb_match.winner_advances_to_match_id
-                bye_matches_to_remove.append(lb_match)
-    
     # Remove bye matches
     for bye_match in bye_matches_to_remove:
         matches.remove(bye_match)
+    
+    # Handle losers bracket byes
+    _handle_losers_bracket_byes(matches, byes_needed)
+
+def _handle_losers_bracket_byes(matches, byes_needed):
+    """Handle losers bracket adjustments when winners bracket has byes"""
+    if byes_needed == 0:
+        return
+    
+    lb_matches = [m for m in matches if m.round_type == 'Losers' and m.round_number == 0]
+    wb_matches = [m for m in matches if m.round_type == 'Winners' and m.round_number == 0]
+    
+    for lb_match in lb_matches:
+        # Find WB matches that feed into this LB match
+        feeding_wb_matches = [wb for wb in wb_matches if wb.loser_advances_to_match_id == lb_match.match_id]
+        
+        if len(feeding_wb_matches) <= 1:
+            if (len(feeding_wb_matches) == 0):
+                matches.remove(lb_match)
+            else:
+                # Single parent - redirect its loser to where this LB match winner would go
+                parent_wb = feeding_wb_matches[0]
+                parent_wb.loser_advances_to_match_id = lb_match.winner_advances_to_match_id
+                matches.remove(lb_match)
 
 def _set_match_order(matches):
     """Set match order for scheduling"""

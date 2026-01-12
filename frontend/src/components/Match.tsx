@@ -66,14 +66,19 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
     const pendingMatches = feedingMatches.filter(m => m.match_status !== 'Completed');
     
     if (pendingMatches.length === 0) {
-      return 'TBD'; // All feeding matches complete, team should be assigned
+      return 'BYE'; // All feeding matches complete, team should be assigned or there was only one feeding match before
     }
     
     if (feedingMatches.length === 1) {
       const feedingMatch = feedingMatches[0];
       const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
-      return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
-    }
+
+      if (isTeam1 || match.team1_id) {
+        return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
+      } else {
+        return 'BYE';
+      }
+  }
     
     // Multiple feeding matches - show the first pending one for team1, second for team2
     if (isTeam1 && pendingMatches.length > 0) {
