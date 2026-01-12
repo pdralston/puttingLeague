@@ -293,6 +293,7 @@ def _handle_championship_rescore(match, tournament_id, winner_team_id, loser_tea
 @require_auth(['Admin', 'Director'])
 def generate_matches(tournament_id):
     data = request.get_json() or {}
+    stations = data.get('stations', 4)
     
     tournament = Tournament.query.get(tournament_id)
     if not tournament:
@@ -310,7 +311,6 @@ def generate_matches(tournament_id):
     _set_advancement_paths(matches)
     _seed_teams_and_handle_byes(matches, teams)
     _set_match_order(matches)
-
     
     # Single database transaction
     db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
@@ -376,8 +376,6 @@ def _create_loser_bracket_matches(tournament_id, matches, team_count):
         lb_round += 1
     _create_championship_match(tournament_id=tournament_id, match_id=match_id, matches=matches)
 
-
-
 def _create_championship_match(tournament_id, match_id, matches):
     championship = Match(
         tournament_id=tournament_id, match_id=match_id, stage_type='Finals',
@@ -385,39 +383,6 @@ def _create_championship_match(tournament_id, match_id, matches):
         stage_match_number=match_id, match_order=match_id, match_status='Pending'
     )
     matches.append(championship)
-
-def _create_bracket_matches(tournament_id, teams):
-    
-    # Create losers bracket matches (only if needed)
-    lb_matches_needed = bracket_size - 2
-    round_num = 0
-    lb_matches_last_round = 0
-    while lb_matches_needed > 0:
-        if lb_matches_last_round > 1 and lb_matches_last_round%2 != 0:
-            lb_matches_needed += 1
-        winner_matches_in_round = bracket_size >> (round_num + 1)
-        matches_in_round = winner_matches_in_round >> 1 if round_num == 0 else max(math.floor((winner_matches_in_round + lb_matches_last_round) / 2), 1)
-        lb_matches_last_round = 0
-        for pos in range(matches_in_round):
-            matches.append(Match(
-                tournament_id=tournament_id, match_id=match_id, stage_type='Group_A',
-                round_type='Losers', round_number=round_num, position_in_round=pos,
-                stage_match_number=match_id, match_order=match_id, match_status='Pending'
-            ))
-            match_id += 1
-            lb_matches_last_round += 1
-            lb_matches_needed -= 1
-        round_num += 1
-    
-    # Create championship match
-    championship = Match(
-        tournament_id=tournament_id, match_id=match_id, stage_type='Finals',
-        round_type='Championship', round_number=0, position_in_round=0,
-        stage_match_number=match_id, match_order=match_id, match_status='Pending'
-    )
-    matches.append(championship)
-    
-    return matches
 
 def _set_advancement_paths(matches):
     """Set winner and loser advancement paths for all matches"""
@@ -465,7 +430,7 @@ def _set_advancement_paths(matches):
                 match_assigned[target_match.match_id] += 1
         else:
             for match in current_round:
-                match.winner_advances_to_match_id = championship.match_idO
+                match.winner_advances_to_match_id = championship.match_id
     
     # WB losers drop to LB (only odd rounds accept WB losers)
     for wb_match in sorted(wb_matches, key=lambda x: x.match_id):
