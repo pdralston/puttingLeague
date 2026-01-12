@@ -465,7 +465,7 @@ def _set_advancement_paths(matches):
                 match_assigned[target_match.match_id] += 1
         else:
             for match in current_round:
-                match.winner_advances_to_match_id = championship.match_id
+                match.winner_advances_to_match_id = championship.match_idO
     
     # WB losers drop to LB (only odd rounds accept WB losers)
     for wb_match in sorted(wb_matches, key=lambda x: x.match_id):
