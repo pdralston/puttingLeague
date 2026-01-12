@@ -73,7 +73,7 @@ const Match: React.FC<MatchProps> = ({ match, allMatches, teams, players, onStar
       const feedingMatch = feedingMatches[0];
       const isWinnerAdvancing = feedingMatch.winner_advances_to_match_id === match.match_id;
 
-      if (isTeam1) {
+      if (isTeam1 || match.team1_id) {
         return `${isWinnerAdvancing ? 'Winner' : 'Loser'} ${feedingMatch.match_order}`;
       } else {
         return 'BYE';
