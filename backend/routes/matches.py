@@ -441,7 +441,8 @@ def _set_advancement_paths(matches):
 
         if target_round in lb_by_round:
             target_matches = lb_by_round[target_round]
-            for target_match in target_matches:
+            matches_to_iterate = reversed(target_matches) if target_round == 1 else target_matches
+            for target_match in matches_to_iterate:
                 if match_assigned[target_match.match_id] < match_capacity[target_match.match_id]:
                     wb_match.loser_advances_to_match_id = target_match.match_id
                     match_assigned[target_match.match_id] += 1
