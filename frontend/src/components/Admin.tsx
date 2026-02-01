@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 import AdminAudit from './AdminAudit';
+import TournamentEdit from './TournamentEdit';
+import './Admin.css';
 
 interface User {
   user_id: number;
@@ -9,20 +11,32 @@ interface User {
   created_at: string;
 }
 
+interface Tournament {
+  tournament_id: number;
+  tournament_date: string;
+  status: string;
+  total_teams: number;
+}
+
 interface AdminProps {
   currentUser: { user_id: number; username: string; role: string };
 }
 
 const Admin: React.FC<AdminProps> = ({ currentUser }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'audit'>('users');
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'audit' | 'tournaments'>('users');
   const [users, setUsers] = useState<User[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({ username: '', password: '', role: 'Director' });
+  const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentUser.role === 'Admin') {
       fetchUsers();
+    }
+    if (currentUser.role === 'Admin' || currentUser.role === 'Director') {
+      fetchTournaments();
     }
   }, [currentUser.role]);
 
@@ -37,6 +51,20 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
+    }
+  };
+
+  const fetchTournaments = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tournaments`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTournaments(data.filter((t: Tournament) => t.status === 'In_Progress'));
+      }
+    } catch (error) {
+      console.error('Failed to fetch tournaments:', error);
     }
   };
 
@@ -137,10 +165,6 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
     }
   };
 
-  const canEditUser = (user: User) => {
-    return currentUser.role === 'Admin' || user.user_id === currentUser.user_id;
-  };
-
   return (
     <div className="admin-container">
       <div className="admin-tabs">
@@ -150,6 +174,14 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
         >
           User Management
         </button>
+        {(currentUser.role === 'Admin' || currentUser.role === 'Director') && (
+          <button 
+            className={activeAdminTab === 'tournaments' ? 'active' : ''}
+            onClick={() => setActiveAdminTab('tournaments')}
+          >
+            Tournament Edit
+          </button>
+        )}
         {currentUser.role === 'Admin' && (
           <button 
             className={activeAdminTab === 'audit' ? 'active' : ''}
@@ -278,6 +310,39 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeAdminTab === 'tournaments' && (currentUser.role === 'Admin' || currentUser.role === 'Director') && (
+        <div className="tournament-edit-section">
+          {selectedTournamentId ? (
+            <TournamentEdit 
+              tournamentId={selectedTournamentId} 
+              onBack={() => setSelectedTournamentId(null)} 
+            />
+          ) : (
+            <div>
+              <h2>Select Tournament to Edit</h2>
+              <div className="tournament-list">
+                {tournaments.length === 0 ? (
+                  <p>No in-progress tournaments available for editing.</p>
+                ) : (
+                  tournaments.map(tournament => (
+                    <div 
+                      key={tournament.tournament_id} 
+                      className="tournament-item"
+                      onClick={() => setSelectedTournamentId(tournament.tournament_id)}
+                    >
+                      <h3>Tournament {tournament.tournament_id}</h3>
+                      <p>Date: {new Date(tournament.tournament_date).toLocaleDateString()}</p>
+                      <p>Status: {tournament.status}</p>
+                      <p>Teams: {tournament.total_teams}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
