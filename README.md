@@ -9,6 +9,7 @@ Disc golf putting league tournament management system with automated bracket gen
 - Double elimination tournament brackets
 - Season standings and leaderboards
 - Multi-role authentication system
+- **Tournament editing for in-progress tournaments**
 
 ## Setup
 
