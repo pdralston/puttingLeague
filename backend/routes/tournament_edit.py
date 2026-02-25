@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, Tournament, Match, Team
+from models import db, Tournament, Match, Team, TournamentRegistration, RegisteredPlayer
 from routes.auth import require_auth
 
 tournament_edit_bp = Blueprint('tournament_edit', __name__)
@@ -98,3 +98,59 @@ def update_match_progression(tournament_id, match_id):
     
     db.session.commit()
     return jsonify({'message': 'Match progression updated successfully'})
+
+@tournament_edit_bp.route('/api/tournaments/<int:tournament_id>/edit/replace-player', methods=['PUT'])
+@require_auth(['Admin', 'Director'])
+def replace_player(tournament_id):
+    """Replace a player in tournament registration and all associated teams"""
+    data = request.get_json()
+    old_player_id = data.get('old_player_id')
+    new_player_id = data.get('new_player_id')
+    
+    if not old_player_id or not new_player_id:
+        return jsonify({'error': 'Both old_player_id and new_player_id required'}), 400
+    
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    
+    # Verify old player is registered
+    old_registration = TournamentRegistration.query.filter_by(
+        tournament_id=tournament_id, 
+        player_id=old_player_id
+    ).first()
+    if not old_registration:
+        return jsonify({'error': 'Old player not registered in tournament'}), 404
+    
+    # Verify new player exists
+    new_player = RegisteredPlayer.query.get(new_player_id)
+    if not new_player:
+        return jsonify({'error': 'New player not found'}), 404
+    
+    # Check if new player already registered
+    existing_registration = TournamentRegistration.query.filter_by(
+        tournament_id=tournament_id, 
+        player_id=new_player_id
+    ).first()
+    if existing_registration:
+        return jsonify({'error': 'New player already registered in tournament'}), 400
+    
+    # Update registration
+    old_registration.player_id = new_player_id
+    
+    # Update all teams where old player appears
+    teams = Team.query.filter_by(tournament_id=tournament_id).all()
+    updated_teams = 0
+    for team in teams:
+        if team.player1_id == old_player_id:
+            team.player1_id = new_player_id
+            updated_teams += 1
+        elif team.player2_id == old_player_id:
+            team.player2_id = new_player_id
+            updated_teams += 1
+    
+    db.session.commit()
+    return jsonify({
+        'message': 'Player replaced successfully',
+        'teams_updated': updated_teams
+    })

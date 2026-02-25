@@ -12,7 +12,7 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-  const [editMode, setEditMode] = useState<'teams' | 'progression' | 'add'>('teams');
+  const [editMode, setEditMode] = useState<'teams' | 'progression' | 'add' | 'replace'>('teams');
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -20,6 +20,12 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
   const [team2Id, setTeam2Id] = useState<number | null>(null);
   const [winnerAdvancesTo, setWinnerAdvancesTo] = useState<number | null>(null);
   const [loserAdvancesTo, setLoserAdvancesTo] = useState<number | null>(null);
+
+  // Player replacement states
+  const [registeredPlayers, setRegisteredPlayers] = useState<any[]>([]);
+  const [allPlayers, setAllPlayers] = useState<any[]>([]);
+  const [oldPlayerId, setOldPlayerId] = useState<number | null>(null);
+  const [newPlayerId, setNewPlayerId] = useState<number | null>(null);
 
   // Add match form
   const [newMatch, setNewMatch] = useState({
@@ -38,16 +44,22 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
 
   const fetchData = useCallback(async () => {
     try {
-      const [matchesRes, teamsRes] = await Promise.all([
+      const [matchesRes, teamsRes, tournamentRes, playersRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/matches`, { credentials: 'include' }),
-        fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' })
+        fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}/teams`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/api/tournaments?id=${tournamentId}`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/api/players`, { credentials: 'include' })
       ]);
       
       const matchesData = await matchesRes.json();
       const teamsData = await teamsRes.json();
+      const tournamentData = await tournamentRes.json();
+      const playersData = await playersRes.json();
       
       setMatches(matchesData);
       setTeams(teamsData);
+      setRegisteredPlayers(tournamentData.registered_players || []);
+      setAllPlayers(playersData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -142,6 +154,38 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
     }
   };
 
+  const replacePlayer = async () => {
+    if (!oldPlayerId || !newPlayerId) {
+      alert('Please select both players');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/tournaments/${tournamentId}/edit/replace-player`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ old_player_id: oldPlayerId, new_player_id: newPlayerId })
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Player replaced successfully. ${data.teams_updated} team(s) updated.`);
+        setOldPlayerId(null);
+        setNewPlayerId(null);
+        fetchData();
+      } else {
+        alert(data.error || 'Failed to replace player');
+      }
+    } catch (error) {
+      console.error('Failed to replace player:', error);
+      alert('Failed to replace player');
+    }
+  };
+
   const getTeamName = (teamId: number | null | undefined) => {
     if (!teamId) return 'TBD';
     const team = teams.find(t => t.team_id === teamId);
@@ -176,21 +220,40 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
         >
           Add Match
         </button>
+        <button 
+          className={editMode === 'replace' ? 'active' : ''}
+          onClick={() => setEditMode('replace')}
+        >
+          Replace Player
+        </button>
       </div>
 
       <div className="content">
         <div className="matches-list">
-          <h3>Matches</h3>
-          {matches.map(match => (
-            <div 
-              key={match.match_id}
-              className={`match-item ${selectedMatch?.match_id === match.match_id ? 'selected' : ''}`}
-              onClick={() => handleMatchSelect(match)}
-            >
-              <div>Match {match.match_order} - {match.round_type} R{match.round_number}</div>
-              <div>{getTeamName(match.team1_id)} vs {getTeamName(match.team2_id)}</div>
-            </div>
-          ))}
+          <h3>{editMode === 'replace' ? 'Registered Players' : 'Matches'}</h3>
+          {editMode === 'replace' ? (
+            registeredPlayers.map(player => (
+              <div 
+                key={player.player_id}
+                className={`match-item ${oldPlayerId === player.player_id ? 'selected' : ''}`}
+                onClick={() => setOldPlayerId(player.player_id)}
+              >
+                <div>{player.player_name} {player.nickname ? `(${player.nickname})` : ''}</div>
+                <div>{player.division}</div>
+              </div>
+            ))
+          ) : (
+            matches.map(match => (
+              <div 
+                key={match.match_id}
+                className={`match-item ${selectedMatch?.match_id === match.match_id ? 'selected' : ''}`}
+                onClick={() => handleMatchSelect(match)}
+              >
+                <div>Match {match.match_order} - {match.round_type} R{match.round_number}</div>
+                <div>{getTeamName(match.team1_id)} vs {getTeamName(match.team2_id)}</div>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="edit-panel">
@@ -292,6 +355,40 @@ const TournamentEdit: React.FC<TournamentEditProps> = ({ tournamentId, onBack })
                 <input type="number" min="1" max="6" value={newMatch.station_assignment} onChange={(e) => setNewMatch({...newMatch, station_assignment: Number(e.target.value)})} />
               </div>
               <button onClick={addNewMatch}>Add Match</button>
+            </div>
+          )}
+
+          {editMode === 'replace' && (
+            <div>
+              <h3>Replace Player</h3>
+              <div>
+                <label>Player to Replace:</label>
+                <select value={oldPlayerId || ''} onChange={(e) => setOldPlayerId(e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">Select Player</option>
+                  {registeredPlayers.map(player => (
+                    <option key={player.player_id} value={player.player_id}>
+                      {player.player_name} {player.nickname ? `(${player.nickname})` : ''} - {player.division}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Replacement Player:</label>
+                <select value={newPlayerId || ''} onChange={(e) => setNewPlayerId(e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">Select Player</option>
+                  {allPlayers
+                    .filter(p => !registeredPlayers.some(rp => rp.player_id === p.player_id))
+                    .map(player => (
+                      <option key={player.player_id} value={player.player_id}>
+                        {player.player_name} {player.nickname ? `(${player.nickname})` : ''} - {player.division}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <button onClick={replacePlayer}>Replace Player</button>
+              <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#666' }}>
+                This will replace the player in the tournament registration and update all teams they are part of.
+              </p>
             </div>
           )}
         </div>
