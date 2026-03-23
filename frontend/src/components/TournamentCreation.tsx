@@ -11,11 +11,27 @@ interface SelectedPlayer extends Player {
   bought_ace_pot: boolean;
 }
 
+const FACTORY_DEFAULTS = { ace_pot_per_player: 1.00 };
+const DEFAULTS_KEY = 'dgputt_tournament_defaults';
+
+function loadDefaults() {
+  try {
+    const saved = localStorage.getItem(DEFAULTS_KEY);
+    return saved ? { ...FACTORY_DEFAULTS, ...JSON.parse(saved) } : { ...FACTORY_DEFAULTS };
+  } catch {
+    return { ...FACTORY_DEFAULTS };
+  }
+}
+
 const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTournamentCreated }) => {
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([]);
-  const [tournamentDate, setTournamentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [stations, setStations] = useState(6);
+  const [tournamentDate, setTournamentDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [stations, setStations] = useState(4);
+  const [acePotPerPlayer, setAcePotPerPlayer] = useState<number>(() => loadDefaults().ace_pot_per_player);
   const [loading, setLoading] = useState(false);
   const [showNewPlayerForm, setShowNewPlayerForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +77,16 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
     setSelectedPlayers(selectedPlayers.map(p => 
       p.player_id === playerId ? { ...p, bought_ace_pot: !p.bought_ace_pot } : p
     ));
+  };
+
+  const saveAsDefault = () => {
+    localStorage.setItem(DEFAULTS_KEY, JSON.stringify({ ace_pot_per_player: acePotPerPlayer }));
+    alert('Saved as new default.');
+  };
+
+  const resetToFactoryDefault = () => {
+    localStorage.removeItem(DEFAULTS_KEY);
+    setAcePotPerPlayer(FACTORY_DEFAULTS.ace_pot_per_player);
   };
 
   const handleNewPlayerSubmit = async (e: React.FormEvent) => {
@@ -115,6 +141,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         body: JSON.stringify({
           tournament_date: tournamentDate,
           stations: stations,
+          ace_pot_per_player: acePotPerPlayer,
           players: selectedPlayers.map(p => ({
             player_id: p.player_id,
             bought_ace_pot: p.bought_ace_pot
@@ -158,6 +185,7 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
   };
 
   const acePotCount = selectedPlayers.filter(p => p.bought_ace_pot).length;
+  const isCustomDefault = JSON.stringify(loadDefaults()) !== JSON.stringify(FACTORY_DEFAULTS);
 
   return (
     <div className="tournament-creation">
@@ -170,24 +198,44 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       </div>
 
       <div className="creation-form">
-        <div className="form-section">
-          <label>Tournament Date:</label>
-          <input
-            type="date"
-            value={tournamentDate}
-            onChange={(e) => setTournamentDate(e.target.value)}
-          />
-        </div>
-
-        <div className="form-section">
-          <label>Number of Stations:</label>
-          <input
-            type="number"
-            min="1"
-            max="20"
-            value={stations}
-            onChange={(e) => setStations(parseInt(e.target.value))}
-          />
+        <div className="form-section parent">
+          <div>
+            <label>Tournament Date:</label>
+            <input
+              type="date"
+              value={tournamentDate}
+              onChange={(e) => setTournamentDate(e.target.value)}
+            />
+          </div><div>
+            <label>Number of Stations:</label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={stations}
+              onChange={(e) => setStations(parseInt(e.target.value))}
+            />
+          </div><div>
+            <label>Ace Pot Buy-in per Player ($):</label>
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              value={acePotPerPlayer}
+              onChange={(e) => setAcePotPerPlayer(parseFloat(e.target.value) || 0)}
+            />
+            <div className="default-actions">
+            <button type="button" className="save-default-button" onClick={saveAsDefault}>
+              Save as Default
+            </button>
+            {isCustomDefault && (
+              <button type="button" className="reset-default-button" onClick={resetToFactoryDefault}>
+                Reset to Original Default
+              </button>
+            )}
+          </div>
+          </div>
+          
         </div>
 
         <div className="players-section">
@@ -218,7 +266,9 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 
           <div className="selected-players">
             <h3>Tournament Players ({selectedPlayers.length})</h3>
-            <div className="ace-pot-summary">Ace Pot Buy-ins: {acePotCount} (${acePotCount}.00)</div>
+            <div className="ace-pot-summary">
+              Ace Pot Buy-ins: {acePotCount} (${(acePotCount * acePotPerPlayer).toFixed(2)})
+            </div>
             <div className="player-list">
               {selectedPlayers.map(player => (
                 <div key={player.player_id} className="player-item selected">
@@ -288,3 +338,4 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 };
 
 export default TournamentCreation;
+

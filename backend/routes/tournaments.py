@@ -7,7 +7,7 @@ from routes.auth import require_auth
 
 tournaments_bp = Blueprint('tournaments', __name__)
 
-def _register_players_helper(tournament_id, tournament_date, players_data):
+def _register_players_helper(tournament_id, tournament_date, players_data, ace_pot_per_player=1.00):
     """Helper function to register players and handle ace pot"""
     registered_players = []
     ace_pot_buyins = 0
@@ -44,7 +44,7 @@ def _register_players_helper(tournament_id, tournament_date, players_data):
     
     # Add ace pot entry if there are buy-ins
     if ace_pot_buyins > 0:
-        ace_pot_amount = ace_pot_buyins * 1.00
+        ace_pot_amount = ace_pot_buyins * float(ace_pot_per_player)
         ace_pot_entry = AcePot(
             tournament_id=tournament_id,
             date=tournament_date,
@@ -141,6 +141,13 @@ def create_tournament():
     stations = data.get('stations', 6)
     if not isinstance(stations, int) or stations < 1 or stations > 20:
         return jsonify({'error': 'Stations must be between 1 and 20'}), 400
+
+    try:
+        ace_pot_per_player = float(data.get('ace_pot_per_player', 1.00))
+        if ace_pot_per_player < 0:
+            return jsonify({'error': 'Ace pot amount cannot be negative'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid ace pot amount'}), 400
     
     try:
         # Create tournament
@@ -157,7 +164,7 @@ def create_tournament():
         
         # Register players using helper
         registered_players, ace_pot_buyins = _register_players_helper(
-            tournament.tournament_id, tournament_date, players
+            tournament.tournament_id, tournament_date, players, ace_pot_per_player
         )
         
         # Generate teams
@@ -209,7 +216,7 @@ def create_tournament():
             'total_players': len(registered_players),
             'teams_generated': len(teams),
             'ace_pot_buyins': ace_pot_buyins,
-            'ace_pot_amount': ace_pot_buyins * 1.00
+            'ace_pot_amount': ace_pot_buyins * ace_pot_per_player
         }), 201
         
     except ValueError as e:
