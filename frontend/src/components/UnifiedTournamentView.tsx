@@ -181,7 +181,7 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
     let secondPlace, firstPlace;
     
     if (totalPot < 60) {
-      secondPlace = totalPot > 10 ? 10 : 0;
+      secondPlace = Math.min(20, totalPot - 20);
       firstPlace = totalPot - secondPlace;
     } else {
       secondPlace = Math.min(40, totalPot - 40);

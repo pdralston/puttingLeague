@@ -143,7 +143,7 @@ def create_tournament():
         return jsonify({'error': 'Stations must be between 1 and 20'}), 400
 
     try:
-        ace_pot_per_player = float(data.get('ace_pot_per_player', 1.00))
+        ace_pot_per_player = float(data.get('ace_pot_per_player', data.get('ace_pot_per_player')))
         if ace_pot_per_player < 0:
             return jsonify({'error': 'Ace pot amount cannot be negative'}), 400
     except (TypeError, ValueError):
