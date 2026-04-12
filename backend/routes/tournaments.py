@@ -91,6 +91,8 @@ def get_tournaments():
             'status': tournament.status,
             'total_teams': tournament.total_teams,
             'ace_pot_payout': float(tournament.ace_pot_payout),
+            'first_payout': float(tournament.first_payout),
+            'second_payout': float(tournament.second_payout),
             'registered_players': [{
                 'player_id': reg[1].player_id,
                 'player_name': reg[1].player_name,

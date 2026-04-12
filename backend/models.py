@@ -61,6 +61,8 @@ class Tournament(db.Model):
     stations = db.Column(db.Integer, default=6)
     buy_in_per_player = db.Column(db.Numeric(10, 2), default=5.00)
     payout_config = db.Column(db.JSON, nullable=True)
+    first_payout = db.Column(db.Numeric(10, 2), default=0.00)
+    second_payout = db.Column(db.Numeric(10, 2), default=0.00)
 
 class AcePot(db.Model):
     __tablename__ = 'ace_pot'

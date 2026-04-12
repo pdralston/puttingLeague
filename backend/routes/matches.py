@@ -766,7 +766,7 @@ def _calculate_payouts(total_payout_pot, payout_config):
     if first_place_payout < second_place_payout:
         first_place_payout, second_place_payout = second_place_payout, first_place_payout
 
-    return first_place_payout, second_place_payout
+    return Decimal(first_place_payout), second_place_payout
 
 def _distribute_cash_payouts(tournament_id):
     """Calculate and distribute cash payouts to players"""
@@ -788,7 +788,7 @@ def _distribute_cash_payouts(tournament_id):
     second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
     
     first_place_payout, second_place_payout = _calculate_payouts(total_payout_pot, payout_config)
-    
+
     # Check if first place went undefeated for ace pot
     ace_pot_payout = 0
     if first_place_team and _team_is_undefeated(tournament_id, first_place_team.team_id):
@@ -833,6 +833,11 @@ def _distribute_cash_payouts(tournament_id):
                     player.seasonal_cash += Decimal(str(first_place_payout / teammates_count))
                 elif player_team.final_place == 2:
                     player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
+    
+    #Save final payout amounts to current tournament
+    tournament.first_payout = first_place_payout
+    tournament.second_payout = second_place_payout
+    db.session.commit()
 
 def _count_team_match_wins(tournament_id, team_id):
     """Count matches won by specific team (excluding byes)"""
