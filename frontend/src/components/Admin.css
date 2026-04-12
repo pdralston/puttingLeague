@@ -202,3 +202,73 @@
   margin: 5px 0;
   color: white;
 }
+
+.payout-settings {
+  padding: 20px;
+}
+
+.payout-settings h2 {
+  color: #1AFF95;
+  margin-top: 0;
+}
+
+.payout-description {
+  color: #aaa;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.payout-settings .form-section {
+  margin-bottom: 20px;
+}
+
+.payout-settings .form-section label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: white;
+}
+
+.payout-settings .form-section input {
+  padding: 8px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background-color: #002A17;
+  color: white;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mode-toggle button {
+  padding: 6px 16px;
+  border: 1px solid #1AFF95;
+  border-radius: 4px;
+  background: transparent;
+  color: #1AFF95;
+  cursor: pointer;
+}
+
+.mode-toggle button.active {
+  background: #1AFF95;
+  color: #003A1F;
+  font-weight: bold;
+}
+
+.payout-preview-table {
+  margin-top: 8px;
+  border-collapse: collapse;
+  color: white;
+}
+
+.payout-preview-table td {
+  padding: 4px 16px 4px 0;
+}
+
+.payout-preview-table td:last-child {
+  color: #1AFF95;
+  font-weight: bold;
+}

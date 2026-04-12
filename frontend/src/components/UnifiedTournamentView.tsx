@@ -177,23 +177,12 @@ const UnifiedTournamentView: React.FC<UnifiedTournamentViewProps> = ({
   };
 
   const calculatePayout = (place: number, totalParticipants: number, isUndefeated: boolean = false) => {
-    const totalPot = 5 * totalParticipants;
-    let secondPlace, firstPlace;
-    
-    if (totalPot < 60) {
-      secondPlace = Math.min(20, totalPot - 20);
-      firstPlace = totalPot - secondPlace;
-    } else {
-      secondPlace = Math.min(40, totalPot - 40);
-      firstPlace = totalPot - secondPlace;
+    switch (place) { 
+      case 1:
+        return tournamentData.first_payout;
+      case 2: return tournamentData.second_payout;
+      default: return 0;
     }
-    
-    if (place === 1) {
-      const acePayout = isUndefeated && tournamentData ? (tournamentData.ace_pot_payout || 0) : 0;
-      return firstPlace + acePayout;
-    }
-    if (place === 2) return secondPlace;
-    return 0;
   };
 
   const isTeamUndefeated = (teamId: number): boolean => {

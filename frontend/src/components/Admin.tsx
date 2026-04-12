@@ -22,14 +22,40 @@ interface AdminProps {
   currentUser: { user_id: number; username: string; role: string };
 }
 
+const PAYOUT_DEFAULTS_KEY = 'dgputt_payout_defaults';
+const FACTORY_PAYOUT_DEFAULTS = { mode: 'fixed' as 'fixed' | 'percentage', second_place_value: 20, buy_in_per_player: 5 };
+
+export function loadPayoutDefaults() {
+  try {
+    const saved = localStorage.getItem(PAYOUT_DEFAULTS_KEY);
+    return saved ? { ...FACTORY_PAYOUT_DEFAULTS, ...JSON.parse(saved) } : { ...FACTORY_PAYOUT_DEFAULTS };
+  } catch {
+    return { ...FACTORY_PAYOUT_DEFAULTS };
+  }
+}
+
 const Admin: React.FC<AdminProps> = ({ currentUser }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'audit' | 'tournaments'>('users');
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'audit' | 'tournaments' | 'payout'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({ username: '', password: '', role: 'Director' });
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
+
+  // Payout settings state
+  const [payoutSettings, setPayoutSettings] = useState(() => loadPayoutDefaults());
+  const isCustomPayout = JSON.stringify(loadPayoutDefaults()) !== JSON.stringify(FACTORY_PAYOUT_DEFAULTS);
+
+  const savePayoutDefaults = () => {
+    localStorage.setItem(PAYOUT_DEFAULTS_KEY, JSON.stringify(payoutSettings));
+    alert('Payout settings saved as default.');
+  };
+
+  const resetPayoutDefaults = () => {
+    localStorage.removeItem(PAYOUT_DEFAULTS_KEY);
+    setPayoutSettings({ ...FACTORY_PAYOUT_DEFAULTS });
+  };
 
   useEffect(() => {
     if (currentUser.role === 'Admin') {
@@ -180,6 +206,14 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
             onClick={() => setActiveAdminTab('tournaments')}
           >
             Tournament Edit
+          </button>
+        )}
+        {(currentUser.role === 'Admin' || currentUser.role === 'Director') && (
+          <button
+            className={activeAdminTab === 'payout' ? 'active' : ''}
+            onClick={() => setActiveAdminTab('payout')}
+          >
+            Payout Settings
           </button>
         )}
         {currentUser.role === 'Admin' && (
@@ -348,6 +382,90 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
 
       {activeAdminTab === 'audit' && currentUser.role === 'Admin' && (
         <AdminAudit user={currentUser} />
+      )}
+
+      {activeAdminTab === 'payout' && (currentUser.role === 'Admin' || currentUser.role === 'Director') && (
+        <div className="payout-settings">
+          <h2>Payout Settings</h2>
+          <p className="payout-description">
+            These values are used as defaults when creating new tournaments. They can be overridden per-tournament on the creation screen.
+          </p>
+
+          <div className="form-section">
+            <label>Buy-in per Player ($):</label>
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              value={payoutSettings.buy_in_per_player}
+              onChange={(e) => setPayoutSettings({ ...payoutSettings, buy_in_per_player: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="form-section">
+            <label>Payout Mode:</label>
+            <div className="mode-toggle">
+              <button
+                className={payoutSettings.mode === 'fixed' ? 'active' : ''}
+                onClick={() => setPayoutSettings({ ...payoutSettings, mode: 'fixed' })}
+              >
+                Fixed ($)
+              </button>
+              <button
+                className={payoutSettings.mode === 'percentage' ? 'active' : ''}
+                onClick={() => setPayoutSettings({ ...payoutSettings, mode: 'percentage' })}
+              >
+                Percentage (%)
+              </button>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <label>
+              2nd Place Payout ({payoutSettings.mode === 'fixed' ? '$' : '%'}):
+            </label>
+            <input
+              type="number"
+              min="0"
+              step={payoutSettings.mode === 'fixed' ? '1' : '1'}
+              max={payoutSettings.mode === 'percentage' ? '100' : undefined}
+              value={payoutSettings.second_place_value}
+              onChange={(e) => setPayoutSettings({ ...payoutSettings, second_place_value: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="payout-preview">
+            <h3>Preview (sample: 12 players)</h3>
+            {(() => {
+              const pot = payoutSettings.buy_in_per_player * 12;
+              let second = payoutSettings.mode === 'fixed'
+                ? payoutSettings.second_place_value
+                : pot * (payoutSettings.second_place_value / 100);
+              let first = pot - second;
+              if (first < second) { [first, second] = [second, first]; }
+              return (
+                <table className="payout-preview-table">
+                  <tbody>
+                    <tr><td>Total pot</td><td>${pot.toFixed(2)}</td></tr>
+                    <tr><td>1st place</td><td>${first.toFixed(2)}</td></tr>
+                    <tr><td>2nd place</td><td>${second.toFixed(2)}</td></tr>
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+
+          <div className="default-actions">
+            <button className="save-default-button" onClick={savePayoutDefaults}>
+              Save as Default
+            </button>
+            {isCustomPayout && (
+              <button className="reset-default-button" onClick={resetPayoutDefaults}>
+                Reset to Original Default
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

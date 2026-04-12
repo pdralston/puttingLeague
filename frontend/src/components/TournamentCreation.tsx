@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 import { Player } from '../types/player';
+import { loadPayoutDefaults } from './Admin';
 
 interface TournamentCreationProps {
   onBack: () => void;
@@ -32,6 +33,10 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
   });
   const [stations, setStations] = useState(4);
   const [acePotPerPlayer, setAcePotPerPlayer] = useState<number>(() => loadDefaults().ace_pot_per_player);
+  const [payoutConfig, setPayoutConfig] = useState(() => loadPayoutDefaults());
+  const [payoutWarning, setPayoutWarning] = useState<string | null>(null);
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+  const [warningShake, setWarningShake] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showNewPlayerForm, setShowNewPlayerForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +137,40 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       return;
     }
 
+    const warning = validatePayout(selectedPlayers.length);
+    if (warning) {
+      setShowPayoutForm(false);
+      setPayoutWarning(warning);
+      return;
+    }
+
+    await submitTournament();
+  };
+
+  // Compute payout split for warning message
+  const computePayoutSplit = (playerCount: number) => {
+    const pot = payoutConfig.buy_in_per_player * playerCount;
+    let second = payoutConfig.mode === 'fixed'
+      ? payoutConfig.second_place_value
+      : pot * (payoutConfig.second_place_value / 100);
+    let first = pot - second;
+    if (first < second) { [first, second] = [second, first]; }
+    return { pot, first, second };
+  };
+
+  const validatePayout = (playerCount: number): string | null => {
+    const { pot, first, second } = computePayoutSplit(playerCount);
+    if (payoutConfig.mode === 'percentage' && payoutConfig.second_place_value > 100) {
+      return `2nd place percentage (${payoutConfig.second_place_value}%) exceeds 100%. Please go to Admin → Payout Settings to fix this before creating a tournament.`;
+    }
+    if (payoutConfig.mode === 'fixed' && payoutConfig.second_place_value >= pot) {
+      return `With ${playerCount} players the total pot is $${pot.toFixed(2)}, but the 2nd place fixed amount is $${payoutConfig.second_place_value.toFixed(2)}. 1st place will receive $${first.toFixed(2)} and 2nd place will receive $${second.toFixed(2)}. Proceed or go to Admin → Payout Settings to adjust.`;
+    }
+    return null;
+  };
+
+  const submitTournament = async () => {
+    setPayoutWarning(null);
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/tournaments`, {
@@ -142,6 +181,8 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
           tournament_date: tournamentDate,
           stations: stations,
           ace_pot_per_player: acePotPerPlayer,
+          buy_in_per_player: payoutConfig.buy_in_per_player,
+          payout_config: { mode: payoutConfig.mode, second_place_value: payoutConfig.second_place_value },
           players: selectedPlayers.map(p => ({
             player_id: p.player_id,
             bought_ace_pot: p.bought_ace_pot
@@ -152,7 +193,6 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       if (response.ok) {
         const tournamentData = await response.json();
         
-        // Generate matches for the tournament
         const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -163,12 +203,10 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         if (matchesResponse.ok) {
           onTournamentCreated();
         } else {
-          // Delete the tournament if match generation fails
           await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}`, {
             method: 'DELETE',
             credentials: 'include'
           });
-          
           const matchError = await matchesResponse.json();
           alert(`Failed to generate matches: ${matchError.error || 'Unknown error'}. Tournament has been deleted.`);
         }
@@ -196,6 +234,65 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       <div className="page-header">
         <h2>Create Tournament</h2>
       </div>
+
+      {payoutWarning && (
+        <div className="payout-warning-modal">
+          <div className="payout-warning-content">
+            <h3>Payout Configuration Notice</h3>
+            <p className={warningShake ? 'shake' : ''}>{payoutWarning}</p>
+            {showPayoutForm ? (
+              <>
+                <div className="payout-modal-settings">
+                  <div className="payout-modal-row">
+                    <label>Buy-in per Player ($):</label>
+                    <input
+                      type="number" min="0" step="0.25"
+                      value={payoutConfig.buy_in_per_player}
+                      onChange={(e) => setPayoutConfig({ ...payoutConfig, buy_in_per_player: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="payout-modal-row">
+                    <label>Mode:</label>
+                    <div className="mode-toggle">
+                      <button type="button" className={payoutConfig.mode === 'fixed' ? 'active' : ''} onClick={() => setPayoutConfig({ ...payoutConfig, mode: 'fixed' })}>Fixed ($)</button>
+                      <button type="button" className={payoutConfig.mode === 'percentage' ? 'active' : ''} onClick={() => setPayoutConfig({ ...payoutConfig, mode: 'percentage' })}>Percentage (%)</button>
+                    </div>
+                  </div>
+                  <div className="payout-modal-row">
+                    <label>2nd Place ({payoutConfig.mode === 'fixed' ? '$' : '%'}):</label>
+                    <input
+                      type="number" min="0" step="1"
+                      max={payoutConfig.mode === 'percentage' ? 100 : undefined}
+                      value={payoutConfig.second_place_value}
+                      onChange={(e) => setPayoutConfig({ ...payoutConfig, second_place_value: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                <div className="form-buttons">
+                  <button onClick={() => {
+                    const w = validatePayout(selectedPlayers.length);
+                    if (w) {
+                      setPayoutWarning(w);
+                      setShowPayoutForm(false);
+                      setWarningShake(true);
+                      setTimeout(() => setWarningShake(false), 600);
+                    } else {
+                      submitTournament();
+                    }
+                  }}>Apply & Create</button>
+                  <button onClick={() => setShowPayoutForm(false)}>Cancel Edit</button>
+                </div>
+              </>
+            ) : (
+              <div className="form-buttons">
+                <button onClick={() => setShowPayoutForm(true)}>Edit Payout Settings</button>
+                <button onClick={submitTournament}>Proceed Anyway</button>
+                <button onClick={() => setPayoutWarning(null)}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="creation-form">
         <div className="form-section parent">

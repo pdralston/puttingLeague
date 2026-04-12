@@ -91,6 +91,8 @@ def get_tournaments():
             'status': tournament.status,
             'total_teams': tournament.total_teams,
             'ace_pot_payout': float(tournament.ace_pot_payout),
+            'first_payout': float(tournament.first_payout),
+            'second_payout': float(tournament.second_payout),
             'registered_players': [{
                 'player_id': reg[1].player_id,
                 'player_name': reg[1].player_name,
@@ -148,6 +150,18 @@ def create_tournament():
             return jsonify({'error': 'Ace pot amount cannot be negative'}), 400
     except (TypeError, ValueError):
         return jsonify({'error': 'Invalid ace pot amount'}), 400
+
+    try:
+        buy_in_per_player = float(data.get('buy_in_per_player', 5.00))
+        if buy_in_per_player < 0:
+            return jsonify({'error': 'Buy-in amount cannot be negative'}), 400
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid buy-in amount'}), 400
+
+    payout_config = data.get('payout_config', None)
+    if payout_config is not None:
+        if not isinstance(payout_config, dict) or payout_config.get('mode') not in ('percentage', 'fixed'):
+            return jsonify({'error': 'Invalid payout_config'}), 400
     
     try:
         # Create tournament
@@ -156,7 +170,9 @@ def create_tournament():
             status='Scheduled',
             total_teams=0,
             ace_pot_payout=0.00,
-            stations=stations
+            stations=stations,
+            buy_in_per_player=buy_in_per_player,
+            payout_config=payout_config
         )
         
         db.session.add(tournament)
@@ -507,36 +523,45 @@ def _adjust_seasonal_cash(tournament_id, reverse=False):
     from models import RegisteredPlayer, TournamentRegistration, Team
     from decimal import Decimal
     
-    # Only adjust cash for completed tournaments (where payouts were actually made)
     tournament = Tournament.query.get(tournament_id)
     if not tournament or tournament.status != 'Completed':
         return
     
     registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
     total_participants = len(registrations)
-    total_payout_pot = 5 * total_participants
-    
-    # Calculate payouts
-    second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
-    first_place_payout = total_payout_pot - second_place_payout
+
+    buy_in = float(tournament.buy_in_per_player) if tournament.buy_in_per_player is not None else 5.0
+    total_payout_pot = buy_in * total_participants
+    payout_config = tournament.payout_config
+
+    if payout_config and payout_config.get('mode') == 'percentage':
+        second_pct = float(payout_config.get('second_place_value', 30)) / 100.0
+        second_place_payout = total_payout_pot * second_pct
+        first_place_payout = total_payout_pot - second_place_payout
+    elif payout_config and payout_config.get('mode') == 'fixed':
+        second_place_payout = float(payout_config.get('second_place_value', 0))
+        first_place_payout = total_payout_pot - second_place_payout
+    else:
+        second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
+        first_place_payout = total_payout_pot - second_place_payout
+
+    if first_place_payout < second_place_payout:
+        first_place_payout, second_place_payout = second_place_payout, first_place_payout
     
     # Find 1st and 2nd place teams
     first_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=1).first()
-    second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
     
-    # Check if first place went undefeated for ace pot
+    # Include ace pot payout if applicable
     ace_pot_payout = 0
     if first_place_team and _is_undefeated_for_deletion(tournament_id, first_place_team.player1_id):
-        # Get ace pot balance at time of tournament (approximate)
         ace_pot_entries = AcePot.query.filter_by(tournament_id=tournament_id).all()
         for entry in ace_pot_entries:
-            if entry.amount < 0:  # This was a payout
-                ace_pot_payout = abs(entry.amount)
+            if entry.amount < 0:
+                ace_pot_payout = abs(float(entry.amount))
                 break
     
     first_place_payout += ace_pot_payout
     
-    # Adjust cash for players
     for reg in registrations:
         player = RegisteredPlayer.query.get(reg.player_id)
         if player:

@@ -745,13 +745,40 @@ def _update_seasonal_points(tournament_id):
             if player2:
                 player2.seasonal_points += team.points_earned
 
+def _calculate_payouts(total_payout_pot, payout_config):
+    """Return (first_place_payout, second_place_payout) given pot and config."""
+    if payout_config and payout_config.get('mode') == 'percentage':
+        second_pct = float(payout_config.get('second_place_value', 30)) / 100.0
+        second_place_payout = total_payout_pot * second_pct
+        first_place_payout = total_payout_pot - second_place_payout
+    elif payout_config and payout_config.get('mode') == 'fixed':
+        second_place_payout = float(payout_config.get('second_place_value', 0))
+        first_place_payout = total_payout_pot - second_place_payout
+    else:
+        # Legacy hardcoded formula
+        if total_payout_pot <= 60:
+            second_place_payout = 20
+        else:
+            second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
+        first_place_payout = total_payout_pot - second_place_payout
+
+    # 1st place must never receive less than 2nd place
+    if first_place_payout < second_place_payout:
+        first_place_payout, second_place_payout = second_place_payout, first_place_payout
+
+    return Decimal(first_place_payout), second_place_payout
+
 def _distribute_cash_payouts(tournament_id):
     """Calculate and distribute cash payouts to players"""
     from models import RegisteredPlayer, TournamentRegistration, Team, AcePot
     
+    tournament = Tournament.query.get(tournament_id)
     registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
     total_participants = len(registrations)
-    total_payout_pot = 5 * total_participants
+
+    buy_in = float(tournament.buy_in_per_player) if tournament and tournament.buy_in_per_player is not None else 5.0
+    total_payout_pot = buy_in * total_participants
+    payout_config = tournament.payout_config if tournament else None
     
     # Get total ace pot balance across all tournaments
     ace_pot_balance = db.session.query(db.func.sum(AcePot.amount)).scalar() or 0
@@ -760,14 +787,8 @@ def _distribute_cash_payouts(tournament_id):
     first_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=1).first()
     second_place_team = Team.query.filter_by(tournament_id=tournament_id, final_place=2).first()
     
-    # Calculate payouts
-    if total_payout_pot <= 60:
-        second_place_payout = 20
-        first_place_payout = total_payout_pot - second_place_payout
-    else:
-        second_place_payout = min(40, total_payout_pot - 40) if total_payout_pot > 40 else 0
-        first_place_payout = total_payout_pot - second_place_payout
-    
+    first_place_payout, second_place_payout = _calculate_payouts(total_payout_pot, payout_config)
+
     # Check if first place went undefeated for ace pot
     ace_pot_payout = 0
     if first_place_team and _team_is_undefeated(tournament_id, first_place_team.team_id):
@@ -776,7 +797,6 @@ def _distribute_cash_payouts(tournament_id):
         
         # Update ace pot tracker
         if ace_pot_payout > 0:
-            # Get player names for description
             from models import RegisteredPlayer
             player1 = RegisteredPlayer.query.get(first_place_team.player1_id)
             player2 = RegisteredPlayer.query.get(first_place_team.player2_id) if first_place_team.player2_id else None
@@ -795,7 +815,6 @@ def _distribute_cash_payouts(tournament_id):
             db.session.add(payout_entry)
     
     # Update tournament with ace pot payout amount
-    tournament = Tournament.query.get(tournament_id)
     if tournament:
         tournament.ace_pot_payout = ace_pot_payout
     
@@ -814,6 +833,11 @@ def _distribute_cash_payouts(tournament_id):
                     player.seasonal_cash += Decimal(str(first_place_payout / teammates_count))
                 elif player_team.final_place == 2:
                     player.seasonal_cash += Decimal(str(second_place_payout / teammates_count))
+    
+    #Save final payout amounts to current tournament
+    tournament.first_payout = first_place_payout
+    tournament.second_payout = second_place_payout
+    db.session.commit()
 
 def _count_team_match_wins(tournament_id, team_id):
     """Count matches won by specific team (excluding byes)"""
