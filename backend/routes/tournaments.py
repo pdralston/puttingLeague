@@ -90,9 +90,9 @@ def get_tournaments():
             'tournament_date': tournament.tournament_date.isoformat(),
             'status': tournament.status,
             'total_teams': tournament.total_teams,
-            'ace_pot_payout': float(tournament.ace_pot_payout),
-            'first_payout': float(tournament.first_payout),
-            'second_payout': float(tournament.second_payout),
+            'ace_pot_payout': safe_float(tournament.ace_pot_payout),
+            'first_payout': safe_float(tournament.first_payout),
+            'second_payout': safe_float(tournament.second_payout),
             'registered_players': [{
                 'player_id': reg[1].player_id,
                 'player_name': reg[1].player_name,
@@ -582,3 +582,6 @@ def _adjust_seasonal_cash(tournament_id, reverse=False):
                     player.seasonal_cash = max(Decimal('0'), player.seasonal_cash - cash_adjustment)
                 else:
                     player.seasonal_cash += cash_adjustment
+
+def safe_float(val):
+    return float(val) if val is not None else 0.0
