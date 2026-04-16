@@ -47,6 +47,65 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
   const [payoutSettings, setPayoutSettings] = useState(() => loadPayoutDefaults());
   const isCustomPayout = JSON.stringify(loadPayoutDefaults()) !== JSON.stringify(FACTORY_PAYOUT_DEFAULTS);
 
+  // Archive state
+  type ArchiveStep = 'idle' | 'warning' | 'form';
+  const [archiveStep, setArchiveStep] = useState<ArchiveStep>('idle');
+  const [archiveSeasonName, setArchiveSeasonName] = useState('');
+  const [archivePreview, setArchivePreview] = useState<{
+    start_date: string | null;
+    end_date: string | null;
+    event_count: number;
+    unique_participants: number;
+    total_participants: number;
+  } | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+
+  const openArchiveWarning = () => setArchiveStep('warning');
+
+  const proceedToArchiveForm = async () => {
+    setArchiveLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/archive/preview`, { credentials: 'include' });
+      if (res.ok) setArchivePreview(await res.json());
+    } catch (e) {
+      console.error('Failed to load archive preview', e);
+    } finally {
+      setArchiveLoading(false);
+    }
+    setArchiveStep('form');
+  };
+
+  const cancelArchive = () => {
+    setArchiveStep('idle');
+    setArchiveSeasonName('');
+    setArchivePreview(null);
+  };
+
+  const performArchive = async () => {
+    if (!archiveSeasonName.trim()) return;
+    setArchiveLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ season_name: archiveSeasonName.trim() })
+      });
+      if (res.ok) {
+        alert(`Season "${archiveSeasonName.trim()}" archived successfully.`);
+        cancelArchive();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Archive failed.');
+      }
+    } catch (e) {
+      console.error('Archive error', e);
+      alert('Archive failed.');
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
   const savePayoutDefaults = () => {
     localStorage.setItem(PAYOUT_DEFAULTS_KEY, JSON.stringify(payoutSettings));
     alert('Payout settings saved as default.');
@@ -213,7 +272,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
             className={activeAdminTab === 'payout' ? 'active' : ''}
             onClick={() => setActiveAdminTab('payout')}
           >
-            Payout Settings
+            Season Management
           </button>
         )}
         {currentUser.role === 'Admin' && (
@@ -386,6 +445,64 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
 
       {activeAdminTab === 'payout' && (currentUser.role === 'Admin' || currentUser.role === 'Director') && (
         <div className="payout-settings">
+          {currentUser.role === 'Admin' && (
+            <div className="archive-section">
+              <h2>Archive Season</h2>
+              <p className="payout-description">
+                Archiving ends the current season, resets seasonal stats, and prepares the system for a new season. This action cannot be undone.
+              </p>
+              <button className="archive-button" onClick={openArchiveWarning}>Archive Season</button>
+
+              {archiveStep === 'warning' && (
+                <div className="modal-overlay">
+                  <div className="modal">
+                    <h3>⚠️ Warning</h3>
+                    <p>The Archive action is <strong>destructive and cannot be reversed</strong>. It will reset all seasonal data, prune inactive players, and collapse the ace pot history.</p>
+                    <p>Are you sure you want to continue?</p>
+                    <div className="modal-buttons">
+                      <button onClick={proceedToArchiveForm} disabled={archiveLoading}>Continue</button>
+                      <button onClick={cancelArchive}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {archiveStep === 'form' && (
+                <div className="modal-overlay">
+                  <div className="modal">
+                    <h3>Archive Season</h3>
+                    {archivePreview && (
+                      <table className="payout-preview-table">
+                        <tbody>
+                          <tr><td>Season Start</td><td>{archivePreview.start_date ?? '—'}</td></tr>
+                          <tr><td>Season End</td><td>{archivePreview.end_date ?? '—'}</td></tr>
+                          <tr><td>Events</td><td>{archivePreview.event_count}</td></tr>
+                          <tr><td>Unique Participants</td><td>{archivePreview.unique_participants}</td></tr>
+                          <tr><td>Total Participations</td><td>{archivePreview.total_participants}</td></tr>
+                        </tbody>
+                      </table>
+                    )}
+                    <div className="form-section">
+                      <label>Season Name:</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Spring 2026"
+                        value={archiveSeasonName}
+                        onChange={(e) => setArchiveSeasonName(e.target.value)}
+                      />
+                    </div>
+                    <div className="modal-buttons">
+                      <button onClick={performArchive} disabled={archiveLoading || !archiveSeasonName.trim()}>
+                        {archiveLoading ? 'Archiving...' : 'Perform Archive'}
+                      </button>
+                      <button onClick={cancelArchive} disabled={archiveLoading}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <h2>Payout Settings</h2>
           <p className="payout-description">
             These values are used as defaults when creating new tournaments. They can be overridden per-tournament on the creation screen.

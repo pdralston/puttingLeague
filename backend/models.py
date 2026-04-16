@@ -17,6 +17,15 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+class Season(db.Model):
+    __tablename__ = 'seasons'
+
+    season_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    season_name = db.Column(db.String(100), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    archived_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class RegisteredPlayer(db.Model):
     __tablename__ = 'registered_players'
     
@@ -26,6 +35,11 @@ class RegisteredPlayer(db.Model):
     division = db.Column(db.Enum('Pro', 'Am', 'Junior'), nullable=False)
     seasonal_points = db.Column(db.Integer, default=0)
     seasonal_cash = db.Column(db.Numeric(10, 2), default=0.00)
+    lifetime_earnings = db.Column(db.Numeric(10, 2), default=0.00)
+    lifetime_ace_pots = db.Column(db.Integer, default=0)
+    events_participated = db.Column(db.Integer, default=0)
+    seasonal_wins = db.Column(db.Integer, default=0)
+    average_place = db.Column(db.Numeric(4, 2), nullable=True)
 
 class TournamentRegistration(db.Model):
     __tablename__ = 'tournament_registrations'
@@ -55,7 +69,7 @@ class Tournament(db.Model):
     
     tournament_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     tournament_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Enum('Scheduled', 'In_Progress', 'Completed', 'Cancelled'), default='Scheduled')
+    status = db.Column(db.Enum('Pending', 'Scheduled', 'In_Progress', 'Completed', 'Cancelled'), default='Scheduled')
     total_teams = db.Column(db.Integer)
     ace_pot_payout = db.Column(db.Numeric(10, 2), default=0.00)
     stations = db.Column(db.Integer, default=6)
@@ -63,6 +77,7 @@ class Tournament(db.Model):
     payout_config = db.Column(db.JSON, nullable=True)
     first_payout = db.Column(db.Numeric(10, 2), default=0.00)
     second_payout = db.Column(db.Numeric(10, 2), default=0.00)
+    season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=True)
 
 class AcePot(db.Model):
     __tablename__ = 'ace_pot'

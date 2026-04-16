@@ -5,15 +5,20 @@ interface PlayerListProps {
   players: Player[];
   onPlayerClick: (player: Player) => void;
   onEditPlayer?: (player: Player) => void;
+  searchTerm?: string;
 }
 
-const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick, onEditPlayer }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick, onEditPlayer, searchTerm = '' }) => {
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
 
-  // Filter players by division
-  const filteredPlayers = divisionFilter === 'All' 
-    ? players 
-    : players.filter(p => p.division === divisionFilter);
+  // Filter players by division and search term for display only
+  const filteredPlayers = players
+    .filter(p => divisionFilter === 'All' || p.division === divisionFilter)
+    .filter(p =>
+      !searchTerm ||
+      p.player_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.nickname && p.nickname.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
   // Sort players alphabetically by name
   const sortedPlayers = filteredPlayers.sort((a, b) => 

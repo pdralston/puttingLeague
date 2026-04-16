@@ -6,9 +6,49 @@ import { API_BASE_URL } from '../config/api';
 
 interface PlayerManagerProps {
   userRole?: string;
+  initialPlayerId?: number | null;
 }
 
-const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) => {
+const TournamentHistoryBySeason: React.FC<{ history: any[] }> = ({ history }) => {
+  const seasons: Record<string, any[]> = {};
+  history.forEach(t => {
+    const key = t.season_name || 'Current Season';
+    if (!seasons[key]) seasons[key] = [];
+    seasons[key].push(t);
+  });
+
+  // Always put Current Season first, even if empty
+  const seasonKeys = [
+    'Current Season',
+    ...Object.keys(seasons).filter(k => k !== 'Current Season')
+  ];
+
+  const [selected, setSelected] = useState<string>('Current Season');
+  const activeKey = seasons[selected] ? selected : seasonKeys[0] || 'Current Season';
+
+  return (
+    <div className="tournament-history">
+      <select value={activeKey} onChange={e => setSelected(e.target.value)} className="season-select">
+        {seasonKeys.map(k => <option key={k} value={k}>{k}</option>)}
+      </select>
+      {(seasons[activeKey] || []).length === 0 ? (
+        <p>No tournaments this season.</p>
+      ) : (
+        (seasons[activeKey] || []).map((t: any) => (
+          <div key={t.tournament_id} className="tournament-entry">
+            <span>{t.tournament_date}</span>
+            {t.won_ace_pot === true && <span className="ace-winner">🎯 ACE POT</span>}
+            <span>Status: {t.status}</span>
+            {t.final_place && <span>Place: {t.final_place}</span>}
+            <span>Points Earned: {t.points_earned}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', initialPlayerId = null }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -52,6 +92,17 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
 
   useEffect(() => {
     fetchPlayers();
+    if (initialPlayerId) {
+      setLoadingDetail(true);
+      setSelectedPlayer({ player_id: initialPlayerId, player_name: '', nickname: undefined, division: 'Am', seasonal_points: 0, seasonal_cash: 0 });
+      fetch(`${API_BASE_URL}/api/players/${initialPlayerId}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(detail => {
+          setSelectedPlayer({ player_id: detail.player_id, player_name: detail.player_name, nickname: detail.nickname, division: detail.division, seasonal_points: detail.seasonal_points, seasonal_cash: detail.seasonal_cash });
+          setPlayerDetail(detail);
+          setLoadingDetail(false);
+        });
+    }
   }, []);
 
   const fetchPlayers = async () => {
@@ -199,6 +250,32 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
               <label>Seasonal Cash:</label>
               <span>${selectedPlayer.seasonal_cash}</span>
             </div>
+            {playerDetail && (
+              <>
+                <div className="stat">
+                  <label>Lifetime Earnings:</label>
+                  <span>${(playerDetail.lifetime_earnings + parseFloat(selectedPlayer.seasonal_cash as any)).toFixed(2)}</span>
+                </div>
+                <div className="stat">
+                  <label>Lifetime Ace Pots:</label>
+                  <span>{playerDetail.lifetime_ace_pots}</span>
+                </div>
+                <div className="stat">
+                  <label>Events Participated:</label>
+                  <span>{playerDetail.events_participated + playerDetail.tournament_history.filter((t: any) => t.season_name === null).length}</span>
+                </div>
+                <div className="stat">
+                  <label>Seasonal Wins:</label>
+                  <span>{playerDetail.seasonal_wins}</span>
+                </div>
+                {playerDetail.average_place !== null && (
+                  <div className="stat">
+                    <label>Average Place:</label>
+                    <span>{Number(playerDetail.average_place).toFixed(2)}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           
           {loadingDetail ? (
@@ -206,21 +283,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
           ) : playerDetail && (
             <>
               <h3>Tournament History</h3>
-              <div className="tournament-history">
-                {playerDetail.tournament_history.length > 0 ? (
-                  playerDetail.tournament_history.map((t: any) => (
-                    <div key={t.tournament_id} className="tournament-entry">
-                      <span>{t.tournament_date}</span>
-                      {t.won_ace_pot === true ? <span className="ace-winner">🎯 ACE POT</span> : <span></span>}
-                      <span>Status: {t.status}</span>
-                      {t.final_place && <span>Place: {t.final_place}</span>}
-                      <span>Points Earned: {t.points_earned}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p>No tournament history</p>
-                )}
-              </div>
+              <TournamentHistoryBySeason history={playerDetail.tournament_history} />
 
               <h3>Teammate History</h3>
               <div className="teammate-history">
@@ -314,7 +377,8 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer' }) =>
       </div>
       
       <PlayerList 
-        players={filteredPlayers} 
+        players={players}
+        searchTerm={searchTerm}
         onPlayerClick={handlePlayerClick}
         onEditPlayer={(userRole === 'Admin' || userRole === 'Director') ? handleEditPlayer : undefined}
       />

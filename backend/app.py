@@ -63,6 +63,7 @@ from routes.ace_pot import ace_pot_bp
 from routes.auth import auth_bp
 from routes.admin_audit import admin_audit_bp
 from routes.tournament_edit import tournament_edit_bp
+from routes.archive import archive_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(players_bp)
@@ -71,6 +72,7 @@ app.register_blueprint(matches_bp)
 app.register_blueprint(ace_pot_bp)
 app.register_blueprint(admin_audit_bp)
 app.register_blueprint(tournament_edit_bp)
+app.register_blueprint(archive_bp)
 
 @app.route('/')
 def health_check():
