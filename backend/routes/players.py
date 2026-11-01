@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from database import db
 from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory, Season
 from routes.auth import require_auth
+from routes.matches import _is_team_undefeated
 import csv
 import io
 
@@ -26,27 +27,37 @@ def get_player_detail(player_id):
         RegisteredPlayer, TeamHistory.teammate_id == RegisteredPlayer.player_id
     ).filter(TeamHistory.player_id == player_id).all()
     
-    # Get tournament history with undefeated check
+    # Get tournament history with ace-pot-win check. An ace-pot win = the
+    # player's team finished 1st AND went undefeated. Uses the shared
+    # _is_team_undefeated helper so this matches the archive's definition
+    # exactly (single source of truth).
     tournaments_with_undefeated = []
     for t in tournaments:
         tournament_obj, registration, team = t
-        won_ace_pot = False
-        
-        if team and team.final_place == 1:
-            # Check if team went undefeated
-            from models import Match
-            team_matches = Match.query.filter_by(tournament_id=tournament_obj.tournament_id).filter(
-                db.or_(Match.team1_id == team.team_id, Match.team2_id == team.team_id)
-            ).filter(Match.match_status == 'Completed').filter(Match.team2_id.isnot(None)).all()
-            
-            won_ace_pot = all(
-                (match.team1_id == team.team_id and match.team1_score > match.team2_score) or
-                (match.team2_id == team.team_id and match.team2_score > match.team1_score)
-                for match in team_matches
-            )
-        
+        won_ace_pot = (
+            team is not None
+            and team.final_place == 1
+            and _is_team_undefeated(tournament_obj.tournament_id, team.team_id)
+        )
         tournaments_with_undefeated.append((tournament_obj, registration, team, won_ace_pot))
-    
+
+    # Live current-season figures (current season = tournaments not yet archived,
+    # i.e. season_id IS NULL). These are not stored on the player row until a
+    # season archive runs, so we compute them on the fly here.
+    season_wins_current = sum(
+        1 for (t_obj, _reg, team, _won) in tournaments_with_undefeated
+        if t_obj.season_id is None and team and team.final_place == 1
+    )
+    ace_pots_current = sum(
+        1 for (t_obj, _reg, _team, won) in tournaments_with_undefeated
+        if t_obj.season_id is None and won
+    )
+
+    # Stored values are cumulative across archived seasons; add the live current
+    # season to present an up-to-date lifetime figure.
+    lifetime_wins = (player.seasonal_wins or 0) + season_wins_current
+    lifetime_ace_pots = (player.lifetime_ace_pots or 0) + ace_pots_current
+
     return jsonify({
         'player_id': player.player_id,
         'player_name': player.player_name,
@@ -55,9 +66,10 @@ def get_player_detail(player_id):
         'seasonal_points': player.seasonal_points,
         'seasonal_cash': float(player.seasonal_cash),
         'lifetime_earnings': float(player.lifetime_earnings or 0),
-        'lifetime_ace_pots': player.lifetime_ace_pots or 0,
+        'lifetime_ace_pots': lifetime_ace_pots,
         'events_participated': player.events_participated or 0,
-        'seasonal_wins': player.seasonal_wins or 0,
+        'seasonal_wins': season_wins_current,
+        'lifetime_wins': lifetime_wins,
         'average_place': float(player.average_place) if player.average_place else None,
         'tournament_history': [{
             'tournament_id': t[0].tournament_id,
