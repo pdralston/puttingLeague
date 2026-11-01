@@ -31,6 +31,10 @@ interface User {
 function App() {
   const [activeTab, setActiveTab] = useState<'landing' | 'players' | 'leaderboard' | 'tournaments' | 'ace-pot' | 'admin'>('landing');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
+  // 'current' = active (not-yet-archived) season; otherwise an archived season_id as string.
+  // Lifted here (rather than inside TournamentDirectory) so the selection survives
+  // navigating into a tournament and back via "Back to Tournaments".
+  const [selectedSeason, setSelectedSeason] = useState<string>('current');
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
   const [editingPendingId, setEditingPendingId] = useState<number | null>(null);
   const [playerManagerKey, setPlayerManagerKey] = useState(0);
@@ -64,6 +68,7 @@ function App() {
     setUser({ user_id: 0, username: 'Viewer', role: 'Viewer' });
     setActiveTab('landing');
     setSelectedTournament(null);
+    setSelectedSeason('current');
     setTournamentMode('view');
   };
 
@@ -129,6 +134,7 @@ function App() {
           onClick={() => {
             setActiveTab('tournaments');
             setSelectedTournament(null);
+            setSelectedSeason('current');
             setTournamentMode('view');
           }}
         >
@@ -193,6 +199,8 @@ function App() {
             onTournamentManage={handleTournamentManage}
             onCreateTournament={handleCreateTournament}
             onEditPending={handleEditPending}
+            selectedSeason={selectedSeason}
+            onSeasonChange={setSelectedSeason}
             userRole={user.role}
           />
         )}
