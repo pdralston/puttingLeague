@@ -293,15 +293,19 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
 
   return (
     <div className="admin-container">
-      <div className="admin-tabs">
-        <button 
+      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+        <button
+          role="tab"
+          aria-selected={activeAdminTab === 'users'}
           className={activeAdminTab === 'users' ? 'active' : ''}
           onClick={() => setActiveAdminTab('users')}
         >
           User Management
         </button>
         {(currentUser.role === 'Admin' || currentUser.role === 'Director') && (
-          <button 
+          <button
+            role="tab"
+            aria-selected={activeAdminTab === 'tournaments'}
             className={activeAdminTab === 'tournaments' ? 'active' : ''}
             onClick={() => setActiveAdminTab('tournaments')}
           >
@@ -310,6 +314,8 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
         )}
         {(currentUser.role === 'Admin' || currentUser.role === 'Director') && (
           <button
+            role="tab"
+            aria-selected={activeAdminTab === 'payout'}
             className={activeAdminTab === 'payout' ? 'active' : ''}
             onClick={() => setActiveAdminTab('payout')}
           >
@@ -317,7 +323,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
           </button>
         )}
         {currentUser.role === 'Admin' && (
-          <button 
+          <button
+            role="tab"
+            aria-selected={activeAdminTab === 'audit'}
             className={activeAdminTab === 'audit' ? 'active' : ''}
             onClick={() => setActiveAdminTab('audit')}
           >
@@ -345,21 +353,27 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
             <div className="user-form">
               <h3>Create New User</h3>
               <form onSubmit={handleCreateUser}>
+                <label htmlFor="create-username">Username</label>
                 <input
+                  id="create-username"
                   type="text"
                   placeholder="Username"
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
                   required
                 />
+                <label htmlFor="create-password">Password</label>
                 <input
+                  id="create-password"
                   type="password"
                   placeholder="Password"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   required
                 />
+                <label htmlFor="create-role">Role</label>
                 <select
+                  id="create-role"
                   value={formData.role}
                   onChange={(e) => setFormData({...formData, role: e.target.value})}
                 >
@@ -378,27 +392,35 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
             <div className="user-form">
               <h3>Edit User</h3>
               <form onSubmit={handleUpdateUser}>
+                <label htmlFor="edit-username">Username</label>
                 <input
+                  id="edit-username"
                   type="text"
                   placeholder="Username"
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
                   required
                 />
+                <label htmlFor="edit-password">New Password (leave blank to keep current)</label>
                 <input
+                  id="edit-password"
                   type="password"
                   placeholder="New Password (leave blank to keep current)"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
                 {currentUser.role === 'Admin' && (
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                  >
-                    <option value="Director">Director</option>
-                    <option value="Admin">Admin</option>
-                  </select>
+                  <>
+                    <label htmlFor="edit-role">Role</label>
+                    <select
+                      id="edit-role"
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    >
+                      <option value="Director">Director</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </>
                 )}
                 <div className="form-buttons">
                   <button type="submit">Update</button>
@@ -462,8 +484,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
                   <p>No in-progress tournaments available for editing.</p>
                 ) : (
                   tournaments.map(tournament => (
-                    <div 
-                      key={tournament.tournament_id} 
+                    <button
+                      key={tournament.tournament_id}
+                      type="button"
                       className="tournament-item"
                       onClick={() => setSelectedTournamentId(tournament.tournament_id)}
                     >
@@ -471,7 +494,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
                       <p>Date: {new Date(tournament.tournament_date).toLocaleDateString()}</p>
                       <p>Status: {tournament.status}</p>
                       <p>Teams: {tournament.total_teams}</p>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -495,9 +518,15 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
               <button className="archive-button" onClick={openArchiveWarning}>Archive Season</button>
 
               {archiveStep === 'warning' && (
-                <div className="modal-overlay">
-                  <div className="modal">
-                    <h3>⚠️ Warning</h3>
+                <div className="modal-overlay" role="presentation" onClick={cancelArchive}>
+                  <div
+                    className="modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="archive-warning-title"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 id="archive-warning-title"><span aria-hidden="true">⚠️ </span>Warning</h3>
                     <p>The Archive action is <strong>destructive and cannot be reversed</strong>. It will reset all seasonal data, prune inactive players, and collapse the ace pot history.</p>
                     <p>Are you sure you want to continue?</p>
                     <div className="modal-buttons">
@@ -509,9 +538,15 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
               )}
 
               {archiveStep === 'form' && (
-                <div className="modal-overlay">
-                  <div className="modal">
-                    <h3>Archive Season</h3>
+                <div className="modal-overlay" role="presentation" onClick={archiveLoading ? undefined : cancelArchive}>
+                  <div
+                    className="modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="archive-form-title"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 id="archive-form-title">Archive Season</h3>
                     {archivePreview && (
                       <table className="payout-preview-table">
                         <tbody>
@@ -554,8 +589,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
                       <p className="archive-tie-note">No completed tournaments to archive.</p>
                     )}
                     <div className="form-section">
-                      <label>Season Name:</label>
+                      <label htmlFor="archive-season-name">Season Name:</label>
                       <input
+                        id="archive-season-name"
                         type="text"
                         placeholder="e.g. Spring 2026"
                         value={archiveSeasonName}
@@ -580,9 +616,15 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
               )}
 
               {archiveStep === 'tie' && (
-                <div className="modal-overlay">
-                  <div className="modal">
-                    <h3>Resolve Am Promotion Tie</h3>
+                <div className="modal-overlay" role="presentation" onClick={archiveLoading ? undefined : cancelArchive}>
+                  <div
+                    className="modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="archive-tie-title"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 id="archive-tie-title">Resolve Am Promotion Tie</h3>
                     <p>
                       The following Am players are tied for the season points lead. Select which, if any,
                       should be promoted Am → Pro. You may select none.
@@ -621,8 +663,9 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
           </p>
 
           <div className="form-section">
-            <label>Buy-in per Player ($):</label>
+            <label htmlFor="buy-in-per-player">Buy-in per Player ($):</label>
             <input
+              id="buy-in-per-player"
               type="number"
               min="0"
               step="0.25"
@@ -632,15 +675,19 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
           </div>
 
           <div className="form-section">
-            <label>Payout Mode:</label>
-            <div className="mode-toggle">
+            <span className="form-section-label" id="payout-mode-label">Payout Mode:</span>
+            <div className="mode-toggle" role="group" aria-labelledby="payout-mode-label">
               <button
+                type="button"
+                aria-pressed={payoutSettings.mode === 'fixed'}
                 className={payoutSettings.mode === 'fixed' ? 'active' : ''}
                 onClick={() => setPayoutSettings({ ...payoutSettings, mode: 'fixed' })}
               >
                 Fixed ($)
               </button>
               <button
+                type="button"
+                aria-pressed={payoutSettings.mode === 'percentage'}
                 className={payoutSettings.mode === 'percentage' ? 'active' : ''}
                 onClick={() => setPayoutSettings({ ...payoutSettings, mode: 'percentage' })}
               >
@@ -650,10 +697,11 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
           </div>
 
           <div className="form-section">
-            <label>
+            <label htmlFor="second-place-value">
               2nd Place Payout ({payoutSettings.mode === 'fixed' ? '$' : '%'}):
             </label>
             <input
+              id="second-place-value"
               type="number"
               min="0"
               step={payoutSettings.mode === 'fixed' ? '1' : '1'}

@@ -1,21 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap');
-
 .landing-page {
   min-height: 100vh;
-  background-color: #003A1F;
-  color: white;
+  background-color: var(--color-page-bg);
+  color: #EFF9F4;
 }
 
+/* ---- Hero ---- */
 .landing-hero {
-  padding: 6rem 0rem 1rem 0rem ;
+  padding: 5rem 1rem 1.5rem;
   text-align: center;
-  border-bottom: 2px solid #1AFF95;
+  border-bottom: 2px solid var(--accent);
 }
 
 .landing-hero h1 {
   margin: 0 0 2rem 0;
-  font-size: 4rem;
-  color: #1AFF95;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 5rem;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-shadow: 2px 2px 4px #00381F;
 }
 
 .landing-nav {
@@ -26,155 +29,179 @@
 }
 
 .landing-nav button {
-  background-color: #1AFF95;
-  color: #003A1F;
+  background-color: var(--accent);
+  color: var(--on-accent);
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  font-weight: bold;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .landing-nav button:hover {
-  background-color: #15CC7A;
+  background-color: var(--accent-strong);
+  color: #fff;
   transform: translateY(-2px);
 }
 
+/* ---- Content card ---- */
 .landing-content {
   padding: 2rem;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
-.tab-container {
-  background-color: #004A2A;
-  border-radius: 10px;
+.landing-page .tab-container {
+  background: var(--surface);
+  color: var(--color-ink);
+  border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card-lg);
 }
 
-.tab-buttons {
+/* Tab bar reads like the table header: deep green active, neutral inactive. */
+.landing-page .tab-buttons {
   display: flex;
-  background-color: #002A17;
-  border-bottom: 2px solid #1AFF95;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--surface-border);
 }
 
-.tab-buttons button {
+.landing-page .tab-buttons button {
   flex: 1;
-  background-color: transparent;
-  color: #1AFF95;
+  background: transparent;
+  color: var(--color-ink-2);
   border: none;
   padding: 1rem;
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-  border-right: 1px solid #1AFF95;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-right: 1px solid var(--surface-border);
 }
 
-.tab-buttons button:last-child {
+.landing-page .tab-buttons button:last-child {
   border-right: none;
 }
 
-.tab-buttons button:hover {
-  background-color: #003A1F;
+.landing-page .tab-buttons button:hover {
+  background: #E7EEEA;
+  color: var(--color-ink);
 }
 
-.tab-buttons button.active {
-  background-color: #1AFF95;
-  color: #003A1F;
+.landing-page .tab-buttons button.active {
+  background: var(--accent-strong);
+  color: #fff;
 }
 
-.tab-content {
+.landing-page .tab-content {
   padding: 2rem;
 }
 
-.tab-panel h2 {
-  color: #1AFF95;
+.landing-page .tab-panel h2 {
+  color: var(--color-ink);
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-size: 2rem;
+  margin-bottom: 1.25rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2.4rem;
+  letter-spacing: 0.5px;
 }
 
-.tab-panel h3 {
-  color: #1AFF95;
+.landing-page .tab-panel h3 {
+  color: var(--accent-strong);
   margin-top: 2rem;
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 1.3rem;
 }
 
-.tab-panel p {
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+.landing-page .tab-panel p {
+  line-height: 1.7;
+  margin-bottom: 1.25rem;
+  font-size: 1.05rem;
   white-space: pre-line;
-  font-family: 'Roboto', sans-serif !important;
-  font-weight: 500 !important;
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--color-ink);
   text-align: left;
 }
 
-.tab-panel section {
+.landing-page .tab-panel section {
   margin-bottom: 2rem;
 }
 
-.action-buttons {
+/* ---- About tab action links (scoped to avoid global .action-buttons) ---- */
+.landing-page .action-buttons {
   display: flex;
   gap: 1rem;
   margin-top: 2rem;
 }
 
-.contact-button, .support-button {
-  background-color: #1AFF95;
-  color: #003A1F;
+.landing-page .contact-button,
+.landing-page .support-button {
+  background: var(--accent);
+  color: var(--on-accent);
   padding: 0.75rem 1.5rem;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   text-decoration: none;
-  font-weight: bold;
-  transition: all 0.3s ease;
+  font-weight: 700;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.contact-button:hover, .support-button:hover {
-  background-color: #15CC7A;
+.landing-page .contact-button:hover,
+.landing-page .support-button:hover {
+  background: var(--accent-strong);
+  color: #fff;
   transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
   .landing-hero {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
   }
-  
+
   .landing-hero h1 {
-    font-size: 2rem;
+    font-size: 3rem;
   }
-  
+
   .landing-nav {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .landing-nav button {
-    width: 200px;
+    width: 220px;
   }
-  
+
   .landing-content {
     padding: 1rem;
   }
-  
-  .tab-buttons {
+
+  .landing-page .tab-buttons {
     flex-direction: column;
   }
-  
-  .tab-buttons button {
+
+  .landing-page .tab-buttons button {
     border-right: none;
-    border-bottom: 1px solid #1AFF95;
+    border-bottom: 1px solid var(--surface-border);
   }
-  
-  .tab-buttons button:last-child {
+
+  .landing-page .tab-buttons button:last-child {
     border-bottom: none;
   }
-  
-  .tab-content {
-    padding: 1rem;
+
+  .landing-page .tab-content {
+    padding: 1.25rem;
   }
 }

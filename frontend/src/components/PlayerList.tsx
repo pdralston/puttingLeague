@@ -55,29 +55,35 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick, onEditP
     return '';
   };
 
-  // Get rank display
-  const getRankDisplay = (player: Player): string => {
-    if (player.seasonal_points === 0) return '';
+  // Get rank info: numeric rank, a short label, and a decorative emoji.
+  type RankInfo = { emoji: string; label: string } | null;
+  const getRankInfo = (player: Player): RankInfo => {
+    if (player.seasonal_points === 0) return null;
     const rank = getDivisionalRank(player);
-    if (rank === 1) return '👑';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return '';
+    if (rank === 1) return { emoji: '👑', label: `1st in ${player.division}` };
+    if (rank === 2) return { emoji: '🥈', label: `2nd in ${player.division}` };
+    if (rank === 3) return { emoji: '🥉', label: `3rd in ${player.division}` };
+    return null;
   };
 
   return (
     <div className="player-list-view">
       <div className="table-container">
-        <table className="players-table">
+        <table
+          className="players-table"
+          aria-label="Players sorted alphabetically by name. Activate a player to view their details."
+        >
           <thead>
             <tr>
-              <th>Name</th>
-              <th className="division-header">
-                Division
-                <select 
-                  value={divisionFilter} 
+              <th scope="col">Name</th>
+              <th scope="col" className="division-header">
+                <label htmlFor="division-filter">Division</label>
+                <select
+                  id="division-filter"
+                  value={divisionFilter}
                   onChange={(e) => setDivisionFilter(e.target.value)}
                   className="division-filter"
+                  aria-label="Filter players by division"
                 >
                   <option value="All">(All)</option>
                   <option value="Pro">Pro</option>
@@ -85,37 +91,67 @@ const PlayerList: React.FC<PlayerListProps> = ({ players, onPlayerClick, onEditP
                   <option value="Junior">Junior</option>
                 </select>
               </th>
-              {onEditPlayer && <th className="actions-header">Actions</th>}
+              {onEditPlayer && (
+                <th scope="col" className="actions-header">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {sortedPlayers.map(player => (
-              <tr 
-                key={player.player_id} 
-                className={`clickable-row ${getLeaderClass(player)}`}
-              >
-                <td onClick={() => onPlayerClick(player)}>
-                  <div className="player-name">
-                    <span className="rank-display">{getRankDisplay(player)}</span> {player.player_name}
-                    {player.nickname && <span className="nickname">"{player.nickname}"</span>}
-                  </div>
-                </td>
-                <td onClick={() => onPlayerClick(player)}>{player.division}</td>
-                {onEditPlayer && (
-                  <td className="actions-cell">
-                    <button 
-                      className="edit-button-small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditPlayer(player);
-                      }}
+            {sortedPlayers.map(player => {
+              const rankInfo = getRankInfo(player);
+              return (
+                <tr
+                  key={player.player_id}
+                  className={getLeaderClass(player)}
+                >
+                  <td>
+                    <button
+                      type="button"
+                      className="player-row-button"
+                      onClick={() => onPlayerClick(player)}
                     >
-                      ✏️
+                      <span className="player-name">
+                        {rankInfo && (
+                          <span className="rank-display">
+                            <span aria-hidden="true">{rankInfo.emoji}</span>
+                            <span className="sr-only">{rankInfo.label}. </span>
+                          </span>
+                        )}
+                        <span className="player-name-text">{player.player_name}</span>
+                        {player.nickname && (
+                          <span className="nickname">"{player.nickname}"</span>
+                        )}
+                      </span>
                     </button>
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td>
+                    <button
+                      type="button"
+                      className="player-division-button"
+                      onClick={() => onPlayerClick(player)}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    >
+                      {player.division}
+                    </button>
+                  </td>
+                  {onEditPlayer && (
+                    <td className="actions-cell">
+                      <button
+                        className="edit-button-small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditPlayer(player);
+                        }}
+                        aria-label={`Edit ${player.player_name}`}
+                      >
+                        <span aria-hidden="true">✏️</span>
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {sortedPlayers.length === 0 && (

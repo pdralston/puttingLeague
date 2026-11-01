@@ -3,13 +3,17 @@ import PlayerRegistration from './PlayerRegistration';
 import PlayerList from './PlayerList';
 import { Player } from '../types/player';
 import { API_BASE_URL } from '../config/api';
+import { getTeamDisplayName } from '../utils/teamUtils';
 
 interface PlayerManagerProps {
   userRole?: string;
   initialPlayerId?: number | null;
 }
 
-const TournamentHistoryBySeason: React.FC<{ history: any[] }> = ({ history }) => {
+const TournamentHistoryBySeason: React.FC<{
+  history: any[];
+  onTournamentClick: (t: any) => void;
+}> = ({ history, onTournamentClick }) => {
   const seasons: Record<string, any[]> = {};
   history.forEach(t => {
     const key = t.season_name || 'Current Season';
@@ -28,21 +32,54 @@ const TournamentHistoryBySeason: React.FC<{ history: any[] }> = ({ history }) =>
 
   return (
     <div className="tournament-history">
-      <select value={activeKey} onChange={e => setSelected(e.target.value)} className="season-select">
+      <label htmlFor="season-history-select" className="sr-only">Select season</label>
+      <select id="season-history-select" value={activeKey} onChange={e => setSelected(e.target.value)} className="season-select">
         {seasonKeys.map(k => <option key={k} value={k}>{k}</option>)}
       </select>
       {(seasons[activeKey] || []).length === 0 ? (
-        <p>No tournaments this season.</p>
+        <p className="detail-empty">No tournaments this season.</p>
       ) : (
-        (seasons[activeKey] || []).map((t: any) => (
-          <div key={t.tournament_id} className="tournament-entry">
-            <span>{t.tournament_date}</span>
-            {t.won_ace_pot === true && <span className="ace-winner">🎯 ACE POT</span>}
-            <span>Status: {t.status}</span>
-            {t.final_place && <span>Place: {t.final_place}</span>}
-            <span>Points Earned: {t.points_earned}</span>
-          </div>
-        ))
+        <div className="detail-table-card">
+          <table className="detail-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Place</th>
+                <th>Points</th>
+                <th><span className="sr-only">Ace Pot</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(seasons[activeKey] || []).map((t: any) => (
+                <tr
+                  key={t.tournament_id}
+                  className="clickable-row"
+                  onClick={() => onTournamentClick(t)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View standings for tournament on ${t.tournament_date}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onTournamentClick(t);
+                    }
+                  }}
+                >
+                  <td>{t.tournament_date}</td>
+                  <td>{t.status}</td>
+                  <td>{t.final_place ?? '—'}</td>
+                  <td>{t.points_earned}</td>
+                  <td>
+                    {t.won_ace_pot === true && (
+                      <span className="ace-winner"><span aria-hidden="true">🎯 </span>ACE POT</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -62,6 +99,35 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [editForm, setEditForm] = useState({ player_name: '', nickname: '', division: '' });
+  // Tournament standings modal (opened from the tournament-history table)
+  const [standingsTournament, setStandingsTournament] = useState<any | null>(null);
+  const [standingsTeams, setStandingsTeams] = useState<any[] | null>(null);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+
+  const openStandings = async (t: any) => {
+    setStandingsTournament(t);
+    setStandingsTeams(null);
+    setStandingsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tournaments/${t.tournament_id}/teams`, { credentials: 'include' });
+      if (res.ok) {
+        const teams = await res.json();
+        setStandingsTeams(teams);
+      } else {
+        setStandingsTeams([]);
+      }
+    } catch (error) {
+      console.error('Failed to load standings:', error);
+      setStandingsTeams([]);
+    } finally {
+      setStandingsLoading(false);
+    }
+  };
+
+  const closeStandings = () => {
+    setStandingsTournament(null);
+    setStandingsTeams(null);
+  };
 
   const getDivisionalRank = (player: Player): number => {
     const divisionPlayers = players
@@ -224,16 +290,31 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
   if (selectedPlayer) {
     return (
       <div className="player-manager">
-        <div className="back-button-container">
+        <div className="back-button-container back-button-container--inline">
           <button className="back-button" onClick={() => {setSelectedPlayer(null); setPlayerDetail(null);}}>
             ← Back to Players
           </button>
         </div>
         <div className={`player-detail ${selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) <= 3 ? `division-leader-${getDivisionalRankSuffix(selectedPlayer)}` : ''}`}>
           <h2>
-            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 1 && '👑 '}
-            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 2 && '🥈 '}
-            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 3 && '🥉 '}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 1 && (
+              <>
+                <span aria-hidden="true">👑 </span>
+                <span className="sr-only">1st in {selectedPlayer.division}. </span>
+              </>
+            )}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 2 && (
+              <>
+                <span aria-hidden="true">🥈 </span>
+                <span className="sr-only">2nd in {selectedPlayer.division}. </span>
+              </>
+            )}
+            {selectedPlayer.seasonal_points > 0 && getDivisionalRank(selectedPlayer) === 3 && (
+              <>
+                <span aria-hidden="true">🥉 </span>
+                <span className="sr-only">3rd in {selectedPlayer.division}. </span>
+              </>
+            )}
             {selectedPlayer.player_name}
           </h2>
           {selectedPlayer.nickname && <p className="nickname">"{selectedPlayer.nickname}"</p>}
@@ -268,6 +349,10 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
                   <label>Seasonal Wins:</label>
                   <span>{playerDetail.seasonal_wins}</span>
                 </div>
+                <div className="stat">
+                  <label>Lifetime Wins:</label>
+                  <span>{playerDetail.lifetime_wins}</span>
+                </div>
                 {playerDetail.average_place !== null && (
                   <div className="stat">
                     <label>Average Place:</label>
@@ -277,34 +362,98 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
               </>
             )}
           </div>
-          
-          {loadingDetail ? (
-            <div className="loading">Loading tournament history...</div>
-          ) : playerDetail && (
-            <>
-              <h3>Tournament History</h3>
-              <TournamentHistoryBySeason history={playerDetail.tournament_history} />
-
-              <h3>Teammate History</h3>
-              <div className="teammate-history">
-                {playerDetail.teammate_history.length > 0 ? (
-                  playerDetail.teammate_history.map((tm: any) => (
-                    <div key={tm.teammate_id} className="teammate-entry">
-                      <span className="teammate-name">
-                        {tm.teammate_name}
-                        {tm.teammate_nickname && ` "${tm.teammate_nickname}"`}
-                      </span>
-                      <span>Paired: {tm.times_paired} times</span>
-                      {tm.average_place && <span>Avg Place: {tm.average_place}</span>}
-                    </div>
-                  ))
-                ) : (
-                  <p>No teammate history</p>
-                )}
-              </div>
-            </>
-          )}
         </div>
+
+        {loadingDetail ? (
+          <div className="loading">Loading tournament history...</div>
+        ) : playerDetail && (
+          <>
+            <section className="detail-section">
+              <h3 className="detail-section-title">Tournament History</h3>
+              <TournamentHistoryBySeason history={playerDetail.tournament_history} onTournamentClick={openStandings} />
+            </section>
+
+            <section className="detail-section">
+              <h3 className="detail-section-title">Teammate History</h3>
+              {playerDetail.teammate_history.length > 0 ? (
+                <div className="detail-table-card">
+                  <table className="detail-table">
+                    <thead>
+                      <tr>
+                        <th>Teammate</th>
+                        <th>Times Paired</th>
+                        <th>Avg Place</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {playerDetail.teammate_history.map((tm: any) => (
+                        <tr key={tm.teammate_id}>
+                          <td className="teammate-name">
+                            {tm.teammate_name}
+                            {tm.teammate_nickname && (
+                              <span className="nickname"> "{tm.teammate_nickname}"</span>
+                            )}
+                          </td>
+                          <td>{tm.times_paired}</td>
+                          <td>{tm.average_place ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="detail-empty">No teammate history</p>
+              )}
+            </section>
+          </>
+        )}
+
+        {standingsTournament && (
+          <div
+            className="edit-modal-overlay"
+            role="presentation"
+            onClick={closeStandings}
+          >
+            <div
+              className="standings-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="standings-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="standings-title">Final Standings — {standingsTournament.tournament_date}</h3>
+              {standingsLoading ? (
+                <p className="detail-empty">Loading standings…</p>
+              ) : standingsTeams && standingsTeams.length > 0 ? (
+                <div className="detail-table-card">
+                  <table className="detail-table">
+                    <thead>
+                      <tr>
+                        <th>Place</th>
+                        <th>Team</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...standingsTeams]
+                        .sort((a, b) => (a.final_place ?? 999) - (b.final_place ?? 999))
+                        .map((team: any) => (
+                          <tr key={team.team_id}>
+                            <td>{team.final_place ?? '—'}</td>
+                            <td>{getTeamDisplayName(team)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="detail-empty">No standings available for this tournament.</p>
+              )}
+              <div className="modal-buttons">
+                <button onClick={closeStandings}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -336,14 +485,21 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
       )}
       
       {showBulkRegister && (
-        <div className="bulk-register-modal">
-          <h3>Bulk Register Players</h3>
-          <p>Select a CSV file with headers: player_name,nickname,division</p>
+        <div
+          className="bulk-register-modal"
+          role="region"
+          aria-labelledby="bulk-register-title"
+        >
+          <h3 id="bulk-register-title">Bulk Register Players</h3>
+          <label htmlFor="bulk-csv-file">
+            Select a CSV file with headers: player_name,nickname,division
+          </label>
           <input
+            id="bulk-csv-file"
             type="file"
             accept=".csv"
             onChange={handleFileSelect}
-            style={{ marginBottom: '10px' }}
+            style={{ marginBottom: '10px', display: 'block' }}
           />
           {selectedFile && (
             <p>Selected: {selectedFile.name}</p>
@@ -351,7 +507,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
           {csvData && (
             <div>
               <h4>Preview:</h4>
-              <pre style={{ background: '#f8f9fa', padding: '10px', fontSize: '12px', maxHeight: '200px', overflow: 'auto' }}>
+              <pre style={{ background: '#f8f9fa', color: '#14172C', padding: '10px', fontSize: '12px', maxHeight: '200px', overflow: 'auto' }}>
                 {csvData.split('\n').slice(0, 5).join('\n')}
                 {csvData.split('\n').length > 5 && '\n...'}
               </pre>
@@ -367,7 +523,9 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
       )}
       
       <div className="search-section">
+        <label htmlFor="player-search" className="sr-only">Search players</label>
         <input
+          id="player-search"
           type="text"
           placeholder="Search players..."
           value={searchTerm}
@@ -384,28 +542,41 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({ userRole = 'Viewer', init
       />
       
       {editingPlayer && (
-        <div className="edit-modal-overlay">
-          <div className="edit-modal">
-            <h3>Edit Player</h3>
+        <div
+          className="edit-modal-overlay"
+          role="presentation"
+          onClick={() => setEditingPlayer(null)}
+        >
+          <div
+            className="edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-player-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="edit-player-title">Edit Player</h3>
             <div className="form-group">
-              <label>Player Name:</label>
+              <label htmlFor="edit-player-name">Player Name:</label>
               <input
+                id="edit-player-name"
                 type="text"
                 value={editForm.player_name}
                 onChange={(e) => setEditForm({...editForm, player_name: e.target.value})}
               />
             </div>
             <div className="form-group">
-              <label>Nickname:</label>
+              <label htmlFor="edit-player-nickname">Nickname:</label>
               <input
+                id="edit-player-nickname"
                 type="text"
                 value={editForm.nickname}
                 onChange={(e) => setEditForm({...editForm, nickname: e.target.value})}
               />
             </div>
             <div className="form-group">
-              <label>Division:</label>
+              <label htmlFor="edit-player-division">Division:</label>
               <select
+                id="edit-player-division"
                 value={editForm.division}
                 onChange={(e) => setEditForm({...editForm, division: e.target.value})}
               >
