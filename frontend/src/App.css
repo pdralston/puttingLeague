@@ -1,13 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&display=swap');
 
 .App {
   text-align: center;
   background-color: #003A1F;
   min-height: 100vh;
-  font-family: 'Bebas Neue', cursive;
-  font-size: 18px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--color-ink);
+}
+
+.App-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 1px;
+  color: #1AFF95;
+  text-shadow: 2px 2px 4px #00381F;
 }
 
 .App-header {
@@ -22,13 +32,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.App-header h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  color: #1AFF95;
-  text-shadow: 2px 2px 4px #00381F;
 }
 
 .App-header nav {
@@ -168,28 +171,32 @@ main {
 /* Custom scrollbar styling */
 .table-container::-webkit-scrollbar,
 .division-table::-webkit-scrollbar,
-.table-scroll::-webkit-scrollbar {
+.table-scroll::-webkit-scrollbar,
+.detail-table-card::-webkit-scrollbar {
   width: 8px;
 }
 
 .table-container::-webkit-scrollbar-track,
 .division-table::-webkit-scrollbar-track,
-.table-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 58, 31, 0.3);
+.table-scroll::-webkit-scrollbar-track,
+.detail-table-card::-webkit-scrollbar-track {
+  background: rgba(20, 23, 44, 0.08);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb,
 .division-table::-webkit-scrollbar-thumb,
-.table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(26, 255, 149, 0.3);
+.table-scroll::-webkit-scrollbar-thumb,
+.detail-table-card::-webkit-scrollbar-thumb {
+  background: rgba(3, 133, 73, 0.5);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover,
 .division-table::-webkit-scrollbar-thumb:hover,
-.table-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 255, 149, 0.5);
+.table-scroll::-webkit-scrollbar-thumb:hover,
+.detail-table-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(3, 133, 73, 0.7);
 }
 /* Header buttons container */
 .header-buttons {
@@ -880,17 +887,33 @@ main {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 4px;
+}
+
+.edit-button-small:hover {
+  background-color: var(--surface-alt);
+}
+
+.division-header label {
+  color: #fff;
+  font-weight: 700;
 }
 
 .division-filter {
-  background: transparent;
-  border: none;
-  color: #000;
-  font-weight: normal;
-  font-size: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--surface-border);
+  color: var(--color-ink);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
   margin-left: 8px;
+  cursor: pointer;
 }
 
 .actions-header {
@@ -916,6 +939,8 @@ main {
 
 .rank-display {
   margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .tournament-content.with-matches-in-progress {

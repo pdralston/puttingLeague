@@ -1,7 +1,7 @@
 .tournament-creation {
   padding: 20px;
-  background-color: #003A1F;
-  color: white;
+  background-color: var(--color-page-bg);
+  color: #EFF9F4;
   min-height: 100vh;
 }
 
@@ -10,70 +10,100 @@
   margin: 0 auto;
 }
 
-.form-section {
-  margin-bottom: 30px;
+.tournament-creation .form-section {
+  margin-bottom: 24px;
 }
 
-.form-section.parent {
+.tournament-creation .form-section.parent {
   display: flex;
   flex-direction: row;
   justify-content: space-evenly;
   gap: 10px;
 }
 
-.form-section label {
+/* Top-level form labels sit on the dark page → light text. */
+.tournament-creation .form-section > label {
   display: block;
-  margin-bottom: 5px;
-  font-weight: normal;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #EFF9F4;
 }
 
-.form-section input {
-  padding: 8px;
-  border: 1px solid #1AFF95;
-  border-radius: 4px;
-  background-color: #002A17;
-  color: white;
+.tournament-creation .form-section > input {
+  padding: 10px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--color-ink);
+  font-size: 1rem;
 }
 
+.tournament-creation .form-section > input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* ---- Player selection panels: white cards ---- */
 .players-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
-.available-players, .selected-players {
-  border: 1px solid #1AFF95;
-  border-radius: 8px;
+.available-players,
+.selected-players {
+  background: var(--surface);
+  color: var(--color-ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   padding: 20px;
 }
 
-.available-players h3, .selected-players h3 {
+.available-players h3,
+.selected-players h3 {
   margin-top: 0;
-  color: #1AFF95;
+  color: var(--color-ink);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.search-input {
+.tournament-creation .search-input {
   width: 100%;
-  padding: 8px;
+  box-sizing: border-box;
+  padding: 10px 12px;
   margin-bottom: 15px;
-  border: 1px solid #1AFF95;
-  border-radius: 4px;
-  background-color: #002A17;
-  color: white;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.tournament-creation .search-input::placeholder {
+  color: var(--color-ink-muted);
+}
+
+.tournament-creation .search-input:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .ace-pot-summary {
   margin-bottom: 10px;
-  padding: 8px;
-  background-color: #004A2F;
-  border-radius: 4px;
-  color: #1AFF95;
-  font-weight: bold;
+  padding: 10px 12px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  color: var(--accent-strong);
+  font-weight: 700;
 }
 
 .player-list {
-  max-height: calc(50vh);
+  max-height: 50vh;
   overflow-y: auto;
   margin-bottom: 15px;
 }
@@ -86,16 +116,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  margin-bottom: 5px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background-color: #002A17;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--color-ink);
 }
 
 .player-item.selected {
-  border-color: #1AFF95;
-  background-color: #004A2F;
+  border-color: var(--accent);
+  background: #E7F7EF;
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
@@ -112,8 +143,9 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #1AFF95;
+  color: var(--accent-strong);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .ace-pot-checkbox input[type="checkbox"] {
@@ -121,45 +153,66 @@
 }
 
 .player-item button {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .available-players .player-item button {
-  background-color: #1AFF95;
-  color: #003A1F;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.available-players .player-item button:hover {
+  background: var(--accent-strong);
+  color: #fff;
 }
 
 .selected-players .player-item button {
-  background-color: #ff4444;
-  color: white;
+  background: var(--danger);
+  color: #fff;
+}
+
+.selected-players .player-item button:hover {
+  background: #8f0019;
 }
 
 .new-player-button {
   width: 100%;
   padding: 10px;
-  background-color: #1AFF95;
-  color: #003A1F;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 700;
 }
 
+.new-player-button:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+/* ---- New player inline form: white card ---- */
 .new-player-form {
-  border: 1px solid #1AFF95;
-  border-radius: 8px;
+  background: var(--surface);
+  color: var(--color-ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   padding: 20px;
-  margin-bottom: 30px;
-  background-color: #002A17;
+  margin-bottom: 24px;
 }
 
 .new-player-form h3 {
   margin-top: 0;
-  color: #1AFF95;
+  color: var(--color-ink);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .new-player-form form {
@@ -169,110 +222,154 @@
   align-items: end;
 }
 
-.new-player-form input, .new-player-form select {
-  padding: 8px;
-  border: 1px solid #1AFF95;
-  border-radius: 4px;
-  background-color: #003A1F;
-  color: white;
+.new-player-form input,
+.new-player-form select {
+  padding: 10px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 1rem;
 }
 
-.form-buttons {
+.new-player-form input:focus,
+.new-player-form select:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.tournament-creation .form-buttons {
   display: flex;
   gap: 10px;
 }
 
-.form-buttons button {
-  padding: 8px 15px;
+.tournament-creation .form-buttons button {
+  padding: 9px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
-.form-buttons button[type="submit"] {
-  background-color: #1AFF95;
-  color: #003A1F;
+.tournament-creation .form-buttons button:hover {
+  background: var(--accent-strong);
+  color: #fff;
 }
 
-.form-buttons button[type="button"] {
-  background-color: #666;
-  color: white;
+.tournament-creation .form-buttons button[type="submit"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tournament-creation .form-buttons button[type="submit"]:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.tournament-creation .form-buttons button[type="button"] {
+  background: #E6E8EF;
+  color: var(--color-ink-2);
+}
+
+.tournament-creation .form-buttons button[type="button"]:hover {
+  background: #D5D8E4;
 }
 
 .create-section {
   text-align: center;
 }
 
-.create-tournament-button {
+.tournament-creation .create-tournament-button {
   padding: 15px 30px;
-  background-color: #1AFF95;
-  color: #003A1F;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.create-tournament-button:disabled {
-  background-color: #666;
+.tournament-creation .create-tournament-button:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.tournament-creation .create-tournament-button:disabled {
+  background: #B9C2BD;
+  color: #5B5F7A;
   cursor: not-allowed;
 }
 
-.default-actions {
+.tournament-creation .default-actions {
   display: flex;
   gap: 10px;
   margin-top: 8px;
 }
 
-.save-default-button {
-  padding: 5px 12px;
-  background-color: #1AFF95;
-  color: #003A1F;
+.tournament-creation .save-default-button {
+  padding: 6px 14px;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
-.reset-default-button {
-  padding: 5px 12px;
-  background-color: transparent;
-  color: #aaa;
-  border: 1px solid #aaa;
-  border-radius: 4px;
+.tournament-creation .save-default-button:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.tournament-creation .reset-default-button {
+  padding: 6px 14px;
+  background: transparent;
+  color: #EFF9F4;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
 }
 
-.reset-default-button:hover {
-  color: #ff4444;
-  border-color: #ff4444;
+.tournament-creation .reset-default-button:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
+/* ---- Payout warning modal: light card ---- */
 .payout-warning-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px;
 }
 
 .payout-warning-content {
-  background: #002A17;
-  border: 1px solid #ffaa00;
-  border-radius: 8px;
-  padding: 24px;
+  background: var(--surface);
+  color: var(--color-ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card-lg);
+  padding: 28px 32px;
   max-width: 480px;
-  color: white;
+  width: 100%;
 }
 
 .payout-warning-content h3 {
-  color: #ffaa00;
+  color: #9A6B00;
   margin-top: 0;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 @keyframes shake {
@@ -283,7 +380,7 @@
 
 .payout-warning-content p.shake {
   animation: shake 0.6s ease;
-  color: #ffaa00;
+  color: #9A6B00;
 }
 
 .payout-modal-settings {
@@ -301,14 +398,15 @@
 
 .payout-modal-row label {
   min-width: 160px;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--color-ink-2);
 }
 
 .payout-modal-row input {
-  padding: 6px 8px;
-  border: 1px solid #1AFF95;
-  border-radius: 4px;
-  background: #002A17;
-  color: white;
+  padding: 8px 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-ink);
   width: 100px;
 }

@@ -96,6 +96,15 @@ const Leaderboard: React.FC<{ onPlayerClick?: (playerId: number) => void }> = ({
                           key={player.player_id}
                           className={onPlayerClick ? 'clickable-row' : ''}
                           onClick={() => onPlayerClick?.(player.player_id)}
+                          role={onPlayerClick ? 'button' : undefined}
+                          tabIndex={onPlayerClick ? 0 : undefined}
+                          aria-label={onPlayerClick ? `View ${player.nickname || player.player_name}, rank ${index + 1}, ${player.seasonal_points} points` : undefined}
+                          onKeyDown={onPlayerClick ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onPlayerClick(player.player_id);
+                            }
+                          } : undefined}
                         >
                           <td>{index + 1}</td>
                           <td>{player.nickname || player.player_name}</td>
