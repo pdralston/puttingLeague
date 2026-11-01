@@ -48,17 +48,27 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
   const isCustomPayout = JSON.stringify(loadPayoutDefaults()) !== JSON.stringify(FACTORY_PAYOUT_DEFAULTS);
 
   // Archive state
-  type ArchiveStep = 'idle' | 'warning' | 'form';
-  const [archiveStep, setArchiveStep] = useState<ArchiveStep>('idle');
-  const [archiveSeasonName, setArchiveSeasonName] = useState('');
-  const [archivePreview, setArchivePreview] = useState<{
+  type AmLeader = { player_id: number; player_name: string; seasonal_points: number };
+  type IncompleteTournament = { tournament_id: number; tournament_date: string; status: string };
+  type ArchivePreview = {
     start_date: string | null;
     end_date: string | null;
     event_count: number;
     unique_participants: number;
     total_participants: number;
-  } | null>(null);
+    incomplete_to_delete: IncompleteTournament[];
+    am_leaders: AmLeader[];
+    am_promotion_tie: boolean;
+    can_archive: boolean;
+  };
+  type ArchiveStep = 'idle' | 'warning' | 'form' | 'tie';
+  const [archiveStep, setArchiveStep] = useState<ArchiveStep>('idle');
+  const [archiveSeasonName, setArchiveSeasonName] = useState('');
+  const [archivePreview, setArchivePreview] = useState<ArchivePreview | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
+  // Am-promotion tie resolution
+  const [tiedLeaders, setTiedLeaders] = useState<AmLeader[]>([]);
+  const [selectedPromotions, setSelectedPromotions] = useState<Set<number>>(new Set());
 
   const openArchiveWarning = () => setArchiveStep('warning');
 
@@ -79,25 +89,43 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
     setArchiveStep('idle');
     setArchiveSeasonName('');
     setArchivePreview(null);
+    setTiedLeaders([]);
+    setSelectedPromotions(new Set());
   };
 
-  const performArchive = async () => {
+  // Submit the archive. When tieResolution is provided (even an empty array),
+  // it is sent as the admin's resolution of an Am-promotion tie.
+  const submitArchive = async (tieResolution?: number[]) => {
     if (!archiveSeasonName.trim()) return;
     setArchiveLoading(true);
     try {
+      const body: { season_name: string; tie_resolution?: number[] } = {
+        season_name: archiveSeasonName.trim(),
+      };
+      if (tieResolution !== undefined) body.tie_resolution = tieResolution;
+
       const res = await fetch(`${API_BASE_URL}/api/archive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ season_name: archiveSeasonName.trim() })
+        body: JSON.stringify(body),
       });
+
       if (res.ok) {
         alert(`Season "${archiveSeasonName.trim()}" archived successfully.`);
         cancelArchive();
-      } else {
-        const err = await res.json();
-        alert(err.error || 'Archive failed.');
+        return;
       }
+
+      const err = await res.json();
+      // Am-promotion tie: backend needs the admin to choose who to promote.
+      if (res.status === 409 && err.error === 'am_promotion_tie') {
+        setTiedLeaders(err.tied_leaders || []);
+        setSelectedPromotions(new Set());
+        setArchiveStep('tie');
+        return;
+      }
+      alert(err.error || 'Archive failed.');
     } catch (e) {
       console.error('Archive error', e);
       alert('Archive failed.');
@@ -105,6 +133,19 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
       setArchiveLoading(false);
     }
   };
+
+  const performArchive = () => submitArchive();
+
+  const togglePromotion = (playerId: number) => {
+    setSelectedPromotions((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  };
+
+  const confirmTieResolution = () => submitArchive(Array.from(selectedPromotions));
 
   const savePayoutDefaults = () => {
     localStorage.setItem(PAYOUT_DEFAULTS_KEY, JSON.stringify(payoutSettings));
@@ -476,11 +517,41 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
                         <tbody>
                           <tr><td>Season Start</td><td>{archivePreview.start_date ?? '—'}</td></tr>
                           <tr><td>Season End</td><td>{archivePreview.end_date ?? '—'}</td></tr>
-                          <tr><td>Events</td><td>{archivePreview.event_count}</td></tr>
+                          <tr><td>Events (Completed, to archive)</td><td>{archivePreview.event_count}</td></tr>
                           <tr><td>Unique Participants</td><td>{archivePreview.unique_participants}</td></tr>
                           <tr><td>Total Participations</td><td>{archivePreview.total_participants}</td></tr>
                         </tbody>
                       </table>
+                    )}
+                    {archivePreview && archivePreview.incomplete_to_delete.length > 0 && (
+                      <div className="archive-warning-block">
+                        <p><strong>⚠️ {archivePreview.incomplete_to_delete.length} incomplete tournament(s) will be permanently DELETED:</strong></p>
+                        <ul>
+                          {archivePreview.incomplete_to_delete.map((t) => (
+                            <li key={t.tournament_id}>
+                              Tournament {t.tournament_id} ({t.status}) — {t.tournament_date}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {archivePreview && archivePreview.am_leaders.length > 0 && (
+                      <div className="archive-info-block">
+                        <p><strong>Am division point leader{archivePreview.am_leaders.length > 1 ? 's' : ''}:</strong></p>
+                        <ul>
+                          {archivePreview.am_leaders.map((p) => (
+                            <li key={p.player_id}>{p.player_name} — {p.seasonal_points} pts</li>
+                          ))}
+                        </ul>
+                        {archivePreview.am_promotion_tie ? (
+                          <p className="archive-tie-note">Multiple players are tied — you will be asked to choose who to promote.</p>
+                        ) : (
+                          <p>This player will be promoted Am → Pro.</p>
+                        )}
+                      </div>
+                    )}
+                    {archivePreview && !archivePreview.can_archive && (
+                      <p className="archive-tie-note">No completed tournaments to archive.</p>
                     )}
                     <div className="form-section">
                       <label>Season Name:</label>
@@ -492,8 +563,49 @@ const Admin: React.FC<AdminProps> = ({ currentUser }) => {
                       />
                     </div>
                     <div className="modal-buttons">
-                      <button onClick={performArchive} disabled={archiveLoading || !archiveSeasonName.trim()}>
+                      <button
+                        onClick={performArchive}
+                        disabled={
+                          archiveLoading ||
+                          !archiveSeasonName.trim() ||
+                          (archivePreview != null && !archivePreview.can_archive)
+                        }
+                      >
                         {archiveLoading ? 'Archiving...' : 'Perform Archive'}
+                      </button>
+                      <button onClick={cancelArchive} disabled={archiveLoading}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {archiveStep === 'tie' && (
+                <div className="modal-overlay">
+                  <div className="modal">
+                    <h3>Resolve Am Promotion Tie</h3>
+                    <p>
+                      The following Am players are tied for the season points lead. Select which, if any,
+                      should be promoted Am → Pro. You may select none.
+                    </p>
+                    <ul className="tie-leader-list">
+                      {tiedLeaders.map((p) => (
+                        <li key={p.player_id}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={selectedPromotions.has(p.player_id)}
+                              onChange={() => togglePromotion(p.player_id)}
+                            />
+                            {' '}{p.player_name} — {p.seasonal_points} pts
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="modal-buttons">
+                      <button onClick={confirmTieResolution} disabled={archiveLoading}>
+                        {archiveLoading
+                          ? 'Archiving...'
+                          : `Confirm & Archive (promote ${selectedPromotions.size})`}
                       </button>
                       <button onClick={cancelArchive} disabled={archiveLoading}>Cancel</button>
                     </div>
