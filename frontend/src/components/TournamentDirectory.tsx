@@ -12,6 +12,7 @@ interface TournamentDirectoryProps {
   onTournamentSelect: (tournamentId: number) => void;
   onTournamentManage: (tournamentId: number) => void;
   onCreateTournament: () => void;
+  onEditPending: (tournamentId: number) => void;
   userRole?: string;
 }
 
@@ -19,6 +20,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
   onTournamentSelect, 
   onTournamentManage, 
   onCreateTournament,
+  onEditPending,
   userRole = 'Viewer'
 }) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -65,6 +67,11 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
     }
   };
 
+  const isAdminOrDirector = userRole === 'Admin' || userRole === 'Director';
+  const visibleTournaments = isAdminOrDirector
+    ? tournaments
+    : tournaments.filter(t => t.status !== 'Pending');
+
   if (loading) return <div className="loading">Loading tournaments...</div>;
 
   return (
@@ -89,32 +96,33 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {tournaments.map(tournament => (
+            {visibleTournaments.map(tournament => (
               <tr key={tournament.tournament_id}>
                 <td>{new Date(tournament.tournament_date).toLocaleDateString()}</td>
                 <td>{tournament.status}</td>
                 <td>{tournament.total_teams || 0}</td>
                 <td>
                   <div className="action-buttons">
-                    <button 
-                      className="view-button"
-                      onClick={() => onTournamentSelect(tournament.tournament_id)}
-                    >
-                      View
-                    </button>
-                    {(userRole === 'Admin' || userRole === 'Director') && (
-                      <button 
-                        className="manage-button"
-                        onClick={() => onTournamentManage(tournament.tournament_id)}
-                      >
-                        Manage
-                      </button>
+                    {tournament.status === 'Pending' ? (
+                      isAdminOrDirector && (
+                        <button className="manage-button" onClick={() => onEditPending(tournament.tournament_id)}>
+                          Edit
+                        </button>
+                      )
+                    ) : (
+                      <>
+                        <button className="view-button" onClick={() => onTournamentSelect(tournament.tournament_id)}>
+                          View
+                        </button>
+                        {isAdminOrDirector && (
+                          <button className="manage-button" onClick={() => onTournamentManage(tournament.tournament_id)}>
+                            Manage
+                          </button>
+                        )}
+                      </>
                     )}
                     {userRole === 'Admin' && (
-                      <button 
-                        className="delete-button"
-                        onClick={(e) => handleDelete(tournament.tournament_id, e)}
-                      >
+                      <button className="delete-button" onClick={(e) => handleDelete(tournament.tournament_id, e)}>
                         Delete
                       </button>
                     )}
@@ -124,7 +132,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
             ))}
           </tbody>
         </table>
-        {tournaments.length === 0 && (
+        {visibleTournaments.length === 0 && (
           <div className="empty-state">No tournaments found.</div>
         )}
       </div>

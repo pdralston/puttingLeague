@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 import { Player } from '../types/player';
 
-const Leaderboard: React.FC = () => {
+const Leaderboard: React.FC<{ onPlayerClick?: (playerId: number) => void }> = ({ onPlayerClick }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerms, setSearchTerms] = useState<Record<string, string>>({
@@ -30,6 +30,7 @@ const Leaderboard: React.FC = () => {
   };
 
   const groupedPlayers = players.reduce((acc, player) => {
+    if (player.seasonal_points <= 0) return acc;
     if (!acc[player.division]) acc[player.division] = [];
     acc[player.division].push(player);
     return acc;
@@ -52,6 +53,8 @@ const Leaderboard: React.FC = () => {
     setSearchTerms(prev => ({ ...prev, [division]: value }));
   };
 
+  const activeDivisions = ['Pro', 'Am', 'Junior'].filter(d => (groupedPlayers[d] || []).length > 0);
+
   if (loading) return <div className="loading">Loading leaderboard...</div>;
 
   return (
@@ -59,51 +62,53 @@ const Leaderboard: React.FC = () => {
       <div className="page-header">
         <h2>Leaderboard</h2>
       </div>
-      
-      <div className="divisions-container">
-        {['Pro', 'Am', 'Junior'].map(division => {
-          const divisionPlayers = groupedPlayers[division] || [];
-          if (divisionPlayers.length === 0) return null;
-          
-          const filteredPlayers = getFilteredPlayers(division);
-          
-          return (
-            <div key={division} className="division-column">
-              <h3>{division} Division</h3>
-              <input
-                type="text"
-                placeholder="Search players..."
-                value={searchTerms[division]}
-                onChange={(e) => handleSearchChange(division, e.target.value)}
-                className="search-input"
-              />
-              <div className="table-scroll">
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Player</th>
-                      <th>Points</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPlayers.map((player, index) => (
-                      <tr key={player.player_id}>
-                        <td>{index + 1}</td>
-                        <td>{player.nickname || player.player_name}</td>
-                        <td>{player.seasonal_points}</td>
+
+      {activeDivisions.length === 0 ? (
+        <div className="empty-state">
+          The season hasn't started yet, but when it does check back here to see all of the divisional standings.
+        </div>
+      ) : (
+        <div className="divisions-container">
+          {activeDivisions.map(division => {
+            const filteredPlayers = getFilteredPlayers(division);
+            return (
+              <div key={division} className="division-column">
+                <h3>{division} Division</h3>
+                <input
+                  type="text"
+                  placeholder="Search players..."
+                  value={searchTerms[division]}
+                  onChange={(e) => handleSearchChange(division, e.target.value)}
+                  className="search-input"
+                />
+                <div className="table-scroll">
+                  <table className="leaderboard-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Points</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredPlayers.map((player, index) => (
+                        <tr
+                          key={player.player_id}
+                          className={onPlayerClick ? 'clickable-row' : ''}
+                          onClick={() => onPlayerClick?.(player.player_id)}
+                        >
+                          <td>{index + 1}</td>
+                          <td>{player.nickname || player.player_name}</td>
+                          <td>{player.seasonal_points}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-      
-      {players.length === 0 && (
-        <div className="empty-state">No players registered yet.</div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

@@ -32,7 +32,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<'landing' | 'players' | 'leaderboard' | 'tournaments' | 'ace-pot' | 'admin'>('landing');
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [tournamentMode, setTournamentMode] = useState<'view' | 'manage' | 'create'>('view');
+  const [editingPendingId, setEditingPendingId] = useState<number | null>(null);
   const [playerManagerKey, setPlayerManagerKey] = useState(0);
+  const [initialPlayerId, setInitialPlayerId] = useState<number | null>(null);
   const [user, setUser] = useState<User>({ user_id: 0, username: 'Viewer', role: 'Viewer' });
   const [showLogin, setShowLogin] = useState(false);
 
@@ -80,10 +82,17 @@ function App() {
   const handleBackToDirectory = () => {
     setSelectedTournament(null);
     setTournamentMode('view');
+    setEditingPendingId(null);
   };
 
   const handleTournamentCreated = () => {
     setTournamentMode('view');
+    setEditingPendingId(null);
+  };
+
+  const handleEditPending = (tournamentId: number) => {
+    setEditingPendingId(tournamentId);
+    setTournamentMode('create');
   };
 
   const renderHeader = () => (
@@ -99,6 +108,7 @@ function App() {
         <button 
           className={activeTab === 'players' ? 'active' : ''}
           onClick={() => {
+            setInitialPlayerId(null);
             if (activeTab === 'players') {
               setPlayerManagerKey(prev => prev + 1);
             } else {
@@ -171,8 +181,8 @@ function App() {
       {showLogin && <Login onLogin={handleLogin} onCancel={handleCancelLogin} />}
       {renderHeader()}
       <main>
-        {activeTab === 'players' && <PlayerManager key={playerManagerKey} userRole={user.role} />}
-        {activeTab === 'leaderboard' && <Leaderboard />}
+        {activeTab === 'players' && <PlayerManager key={playerManagerKey} userRole={user.role} initialPlayerId={initialPlayerId} />}
+        {activeTab === 'leaderboard' && <Leaderboard onPlayerClick={(id) => { setInitialPlayerId(id); setPlayerManagerKey(k => k + 1); setActiveTab('players'); }} />}
         {activeTab === 'ace-pot' && <AcePotTracker />}
         {activeTab === 'admin' && (user.role === 'Admin' || user.role === 'Director') && (
           <Admin currentUser={user} />
@@ -182,6 +192,7 @@ function App() {
             onTournamentSelect={handleTournamentSelect}
             onTournamentManage={handleTournamentManage}
             onCreateTournament={handleCreateTournament}
+            onEditPending={handleEditPending}
             userRole={user.role}
           />
         )}
@@ -189,6 +200,7 @@ function App() {
           <TournamentCreation
             onBack={handleBackToDirectory}
             onTournamentCreated={handleTournamentCreated}
+            existingPendingId={editingPendingId}
           />
         )}
         {activeTab === 'tournaments' && selectedTournament && tournamentMode === 'view' && (

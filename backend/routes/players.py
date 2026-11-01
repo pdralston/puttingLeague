@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from database import db
-from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory
+from models import RegisteredPlayer, TournamentRegistration, Tournament, Team, TeamHistory, Season
 from routes.auth import require_auth
 import csv
 import io
@@ -54,6 +54,11 @@ def get_player_detail(player_id):
         'division': player.division,
         'seasonal_points': player.seasonal_points,
         'seasonal_cash': float(player.seasonal_cash),
+        'lifetime_earnings': float(player.lifetime_earnings or 0),
+        'lifetime_ace_pots': player.lifetime_ace_pots or 0,
+        'events_participated': player.events_participated or 0,
+        'seasonal_wins': player.seasonal_wins or 0,
+        'average_place': float(player.average_place) if player.average_place else None,
         'tournament_history': [{
             'tournament_id': t[0].tournament_id,
             'tournament_date': t[0].tournament_date.isoformat(),
@@ -61,7 +66,8 @@ def get_player_detail(player_id):
             'bought_ace_pot': t[1].bought_ace_pot,
             'final_place': t[2].final_place if t[2] else None,
             'points_earned': t[2].points_earned if t[2] else 0,
-            'won_ace_pot': t[3]
+            'won_ace_pot': t[3],
+            'season_name': Season.query.get(t[0].season_id).season_name if t[0].season_id else None
         } for t in tournaments_with_undefeated],
         'teammate_history': [{
             'teammate_id': th[0].teammate_id,

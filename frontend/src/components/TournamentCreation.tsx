@@ -6,6 +6,7 @@ import { loadPayoutDefaults } from './Admin';
 interface TournamentCreationProps {
   onBack: () => void;
   onTournamentCreated: () => void;
+  existingPendingId?: number | null;
 }
 
 interface SelectedPlayer extends Player {
@@ -24,9 +25,10 @@ function loadDefaults() {
   }
 }
 
-const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTournamentCreated }) => {
+const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTournamentCreated, existingPendingId = null }) => {
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([]);
+  const [pendingTournamentId, setPendingTournamentId] = useState<number | null>(existingPendingId);
   const [tournamentDate, setTournamentDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -46,9 +48,54 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
     division: 'Am' as 'Pro' | 'Am' | 'Junior'
   });
 
+  const initializingRef = React.useRef(false);
+
   useEffect(() => {
     fetchPlayers();
+    if (existingPendingId) {
+      loadExistingPending(existingPendingId);
+    } else {
+      initPendingTournament();
+    }
   }, []);
+
+
+  const loadExistingPending = async (id: number) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tournaments?id=${id}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedPlayers((data.registered_players || []).map((p: any) => ({ ...p, bought_ace_pot: p.bought_ace_pot ?? false })));
+      }
+    } catch (error) {
+      console.error('Failed to load existing pending tournament:', error);
+    }
+  };
+
+  const initPendingTournament = async () => {
+    if (initializingRef.current) return;
+    initializingRef.current = true;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tournaments/pending`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          tournament_date: tournamentDate,
+          stations,
+          buy_in_per_player: payoutConfig.buy_in_per_player,
+          ace_pot_per_player: acePotPerPlayer,
+          payout_config: { mode: payoutConfig.mode, second_place_value: payoutConfig.second_place_value }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingTournamentId(data.tournament_id);
+      }
+    } catch (error) {
+      console.error('Failed to create pending tournament:', error);
+    }
+  };
 
   const fetchPlayers = async () => {
     try {
@@ -68,19 +115,53 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
     (player.nickname && player.nickname.toLowerCase().includes(searchTerm.toLowerCase())))
   ).sort((a, b) => a.player_name.localeCompare(b.player_name));
 
-  const addPlayer = (player: Player) => {
-    if (!selectedPlayers.find(p => p.player_id === player.player_id)) {
-      setSelectedPlayers([...selectedPlayers, { ...player, bought_ace_pot: false }]);
+  const addPlayer = async (player: Player) => {
+    if (selectedPlayers.find(p => p.player_id === player.player_id)) return;
+    if (!pendingTournamentId) { alert('Tournament not initialized yet. Please wait a moment.'); return; }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/players`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ player_id: player.player_id, bought_ace_pot: false, ace_pot_per_player: acePotPerPlayer })
+      });
+      if (res.ok) {
+        setSelectedPlayers(prev => [...prev, { ...player, bought_ace_pot: false }]);
+      }
+    } catch (error) {
+      console.error('Failed to add player:', error);
     }
   };
 
-  const removePlayer = (playerId: number) => {
-    setSelectedPlayers(selectedPlayers.filter(p => p.player_id !== playerId));
+  const removePlayer = async (playerId: number) => {
+    if (pendingTournamentId) {
+      await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/players/${playerId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      }).catch(() => {});
+    }
+    setSelectedPlayers(prev => prev.filter(p => p.player_id !== playerId));
   };
 
-  const toggleAcePot = (playerId: number) => {
-    setSelectedPlayers(selectedPlayers.map(p => 
-      p.player_id === playerId ? { ...p, bought_ace_pot: !p.bought_ace_pot } : p
+  const toggleAcePot = async (playerId: number) => {
+    const player = selectedPlayers.find(p => p.player_id === playerId);
+    if (!player || !pendingTournamentId) return;
+
+    const newVal = !player.bought_ace_pot;
+    // Remove and re-add with updated ace pot flag
+    await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/players/${playerId}`, {
+      method: 'DELETE', credentials: 'include'
+    }).catch(() => {});
+    await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ player_id: playerId, bought_ace_pot: newVal, ace_pot_per_player: acePotPerPlayer })
+    }).catch(() => {});
+
+    setSelectedPlayers(prev => prev.map(p =>
+      p.player_id === playerId ? { ...p, bought_ace_pot: newVal } : p
     ));
   };
 
@@ -96,14 +177,10 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
 
   const handleNewPlayerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const duplicate = availablePlayers.find(p => 
+    const duplicate = availablePlayers.find(p =>
       p.player_name.toLowerCase() === newPlayer.player_name.toLowerCase()
     );
-    if (duplicate) {
-      alert('Player already exists in the league');
-      return;
-    }
+    if (duplicate) { alert('Player already exists in the league'); return; }
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/players`, {
@@ -112,22 +189,19 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
         credentials: 'include',
         body: JSON.stringify(newPlayer)
       });
-
       if (response.ok) {
         const result = await response.json();
         const createdPlayer = result.created[0];
-        setAvailablePlayers([...availablePlayers, createdPlayer]);
-        addPlayer(createdPlayer);
+        setAvailablePlayers(prev => [...prev, createdPlayer]);
+        await addPlayer(createdPlayer);
         setNewPlayer({ player_name: '', nickname: '', division: 'Am' });
         setShowNewPlayerForm(false);
       } else {
         const error = await response.json();
-        const errorMessage = error.errors ? error.errors.join('\n') : (error.error || 'Unknown error');
-        alert(`Error creating player: ${errorMessage}`);
+        alert(`Error creating player: ${error.errors ? error.errors.join('\n') : error.error}`);
       }
     } catch (error) {
       console.error('Failed to create player:', error);
-      alert('Network error: Failed to create player. Please try again.');
     }
   };
 
@@ -136,18 +210,15 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
       alert('Need at least 2 players to create a tournament');
       return;
     }
-
     const warning = validatePayout(selectedPlayers.length);
     if (warning) {
       setShowPayoutForm(false);
       setPayoutWarning(warning);
       return;
     }
-
     await submitTournament();
   };
 
-  // Compute payout split for warning message
   const computePayoutSplit = (playerCount: number) => {
     const pot = payoutConfig.buy_in_per_player * playerCount;
     let second = payoutConfig.mode === 'fixed'
@@ -161,58 +232,49 @@ const TournamentCreation: React.FC<TournamentCreationProps> = ({ onBack, onTourn
   const validatePayout = (playerCount: number): string | null => {
     const { pot, first, second } = computePayoutSplit(playerCount);
     if (payoutConfig.mode === 'percentage' && payoutConfig.second_place_value > 100) {
-      return `2nd place percentage (${payoutConfig.second_place_value}%) exceeds 100%. Please go to Admin → Payout Settings to fix this before creating a tournament.`;
+      return `2nd place percentage (${payoutConfig.second_place_value}%) exceeds 100%. Please go to Admin → Season Management to fix this before creating a tournament.`;
     }
     if (payoutConfig.mode === 'fixed' && payoutConfig.second_place_value >= pot) {
-      return `With ${playerCount} players the total pot is $${pot.toFixed(2)}, but the 2nd place fixed amount is $${payoutConfig.second_place_value.toFixed(2)}. 1st place will receive $${first.toFixed(2)} and 2nd place will receive $${second.toFixed(2)}. Proceed or go to Admin → Payout Settings to adjust.`;
+      return `With ${playerCount} players the total pot is $${pot.toFixed(2)}, but the 2nd place fixed amount is $${payoutConfig.second_place_value.toFixed(2)}. 1st place will receive $${first.toFixed(2)} and 2nd place will receive $${second.toFixed(2)}. Proceed or go to Admin → Season Management to adjust.`;
     }
     return null;
   };
 
   const submitTournament = async () => {
+    if (!pendingTournamentId) { alert('No pending tournament found.'); return; }
     setPayoutWarning(null);
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tournaments`, {
+      const finalizeRes = await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          tournament_date: tournamentDate,
-          stations: stations,
-          ace_pot_per_player: acePotPerPlayer,
-          buy_in_per_player: payoutConfig.buy_in_per_player,
-          payout_config: { mode: payoutConfig.mode, second_place_value: payoutConfig.second_place_value },
-          players: selectedPlayers.map(p => ({
-            player_id: p.player_id,
-            bought_ace_pot: p.bought_ace_pot
-          }))
-        })
+        body: JSON.stringify({ ace_pot_per_player: acePotPerPlayer })
       });
 
-      if (response.ok) {
-        const tournamentData = await response.json();
-        
-        const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}/generate-matches`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ stations: stations })
-        });
+      if (!finalizeRes.ok) {
+        const err = await finalizeRes.json();
+        alert(`Failed to finalize tournament: ${err.error || 'Unknown error'}`);
+        return;
+      }
 
-        if (matchesResponse.ok) {
-          onTournamentCreated();
-        } else {
-          await fetch(`${API_BASE_URL}/api/tournaments/${tournamentData.tournament_id}`, {
-            method: 'DELETE',
-            credentials: 'include'
-          });
-          const matchError = await matchesResponse.json();
-          alert(`Failed to generate matches: ${matchError.error || 'Unknown error'}. Tournament has been deleted.`);
-        }
+      const matchesResponse = await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}/generate-matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stations })
+      });
+
+      if (matchesResponse.ok) {
+        setPendingTournamentId(null);
+        onTournamentCreated();
       } else {
-        const error = await response.json();
-        alert(`Failed to create tournament: ${error.error || 'Unknown error'}`);
+        await fetch(`${API_BASE_URL}/api/tournaments/${pendingTournamentId}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        setPendingTournamentId(null);
+        const matchError = await matchesResponse.json();
+        alert(`Failed to generate matches: ${matchError.error || 'Unknown error'}. Tournament has been deleted.`);
       }
     } catch (error) {
       console.error('Failed to create tournament:', error);

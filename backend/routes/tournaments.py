@@ -111,7 +111,7 @@ def get_tournaments():
         })
     else:
         try:
-            tournaments = Tournament.query.order_by(Tournament.tournament_id.desc()).all()
+            tournaments = Tournament.query.filter_by(season_id=None).order_by(Tournament.tournament_id.desc()).all()
             return jsonify([{
                 'tournament_id': t.tournament_id,
                 'tournament_date': t.tournament_date.isoformat() if t.tournament_date else None,
@@ -242,7 +242,167 @@ def create_tournament():
         db.session.rollback()
         return jsonify({'error': 'Failed to create tournament'}), 500
 
-@tournaments_bp.route('/api/tournaments/<int:tournament_id>/register-players', methods=['POST'])
+@tournaments_bp.route('/api/tournaments/pending', methods=['POST'])
+@require_auth(['Admin', 'Director'])
+def create_pending_tournament():
+    data = request.get_json()
+    if not data or not data.get('tournament_date'):
+        return jsonify({'error': 'Tournament date is required'}), 400
+    try:
+        tournament_date = datetime.strptime(data['tournament_date'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+    stations = data.get('stations', 6)
+    if not isinstance(stations, int) or stations < 1 or stations > 20:
+        return jsonify({'error': 'Stations must be between 1 and 20'}), 400
+
+    try:
+        buy_in_per_player = float(data.get('buy_in_per_player', 5.00))
+        ace_pot_per_player = float(data.get('ace_pot_per_player', 1.00))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid numeric value'}), 400
+
+    payout_config = data.get('payout_config', None)
+
+    tournament = Tournament(
+        tournament_date=tournament_date,
+        status='Pending',
+        total_teams=0,
+        ace_pot_payout=0.00,
+        stations=stations,
+        buy_in_per_player=buy_in_per_player,
+        payout_config=payout_config
+    )
+    db.session.add(tournament)
+    db.session.commit()
+    return jsonify({
+        'tournament_id': tournament.tournament_id,
+        'status': tournament.status
+    }), 201
+
+
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>/finalize', methods=['POST'])
+@require_auth(['Admin', 'Director'])
+def finalize_tournament(tournament_id):
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    if tournament.status != 'Pending':
+        return jsonify({'error': 'Tournament is not in Pending state'}), 400
+
+    data = request.get_json() or {}
+    ace_pot_per_player = float(data.get('ace_pot_per_player', 1.00))
+
+    registrations = TournamentRegistration.query.filter_by(tournament_id=tournament_id).all()
+    if len(registrations) < 2:
+        return jsonify({'error': 'At least 2 players required'}), 400
+
+    try:
+        player_list = [RegisteredPlayer.query.get(r.player_id) for r in registrations]
+        player_list = [p for p in player_list if p]
+        teams = []
+
+        while len(player_list) >= 2:
+            player_one = player_list.pop()
+            n = len(player_list)
+            index = random.randint(0, n - 1)
+            player_two = player_list[index]
+            player_list[index] = player_list[n - 1]
+            player_list.pop()
+
+            team = Team(
+                tournament_id=tournament_id,
+                player1_id=player_one.player_id,
+                player2_id=player_two.player_id,
+                is_ghost_team=False,
+                seed_number=len(teams) + 1
+            )
+            db.session.add(team)
+            teams.append(team)
+
+        if player_list:
+            team = Team(
+                tournament_id=tournament_id,
+                player1_id=player_list.pop().player_id,
+                player2_id=None,
+                is_ghost_team=True,
+                seed_number=len(teams) + 1
+            )
+            db.session.add(team)
+            teams.append(team)
+
+        tournament.total_teams = len(teams)
+        tournament.status = 'Scheduled'
+        db.session.commit()
+
+        return jsonify({
+            'tournament_id': tournament_id,
+            'status': tournament.status,
+            'total_teams': tournament.total_teams
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>/players', methods=['POST'])
+@require_auth(['Admin', 'Director'])
+def add_player_to_pending(tournament_id):
+    """Add a single player to a Pending tournament and update ace pot if applicable."""
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament:
+        return jsonify({'error': 'Tournament not found'}), 404
+    if tournament.status != 'Pending':
+        return jsonify({'error': 'Can only add players to a Pending tournament'}), 400
+
+    data = request.get_json()
+    if not data or not data.get('player_id'):
+        return jsonify({'error': 'player_id is required'}), 400
+
+    ace_pot_per_player = float(data.get('ace_pot_per_player', 1.00))
+
+    try:
+        registered, _ = _register_players_helper(
+            tournament_id, tournament.tournament_date,
+            [{'player_id': data['player_id'], 'bought_ace_pot': data.get('bought_ace_pot', False)}],
+            ace_pot_per_player
+        )
+        db.session.commit()
+        return jsonify({'registered': len(registered)}), 201
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+
+@tournaments_bp.route('/api/tournaments/<int:tournament_id>/players/<int:player_id>', methods=['DELETE'])
+@require_auth(['Admin', 'Director'])
+def remove_player_from_pending(tournament_id, player_id):
+    """Remove a player from a Pending tournament."""
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament or tournament.status != 'Pending':
+        return jsonify({'error': 'Tournament not found or not Pending'}), 404
+
+    reg = TournamentRegistration.query.filter_by(
+        tournament_id=tournament_id, player_id=player_id
+    ).first()
+    if not reg:
+        return jsonify({'error': 'Player not registered'}), 404
+
+    # Reverse ace pot entry if they bought in
+    if reg.bought_ace_pot:
+        ace_entry = AcePot.query.filter_by(tournament_id=tournament_id).order_by(AcePot.ace_pot_id.desc()).first()
+        if ace_entry:
+            ace_entry.amount -= 1.00  # subtract one buy-in
+            if ace_entry.amount <= 0:
+                db.session.delete(ace_entry)
+
+    db.session.delete(reg)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@tournaments_bp.route('/api/tournaments/register-players', methods=['POST'])
 @require_auth(['Admin', 'Director'])
 def register_players_for_tournament(tournament_id):
     if tournament_id <= 0:

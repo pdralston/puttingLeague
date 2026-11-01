@@ -11,26 +11,49 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Archived-season records (a tournament with NULL season_id is in the current season)
+CREATE TABLE seasons (
+    season_id INT AUTO_INCREMENT PRIMARY KEY,
+    season_name VARCHAR(100) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tournament records
+-- Full current schema (migrated end state): includes `first_payout`/
+-- `second_payout`, `season_id` + FK, and the 'Pending' status value. This file
+-- is the authoritative fresh-install schema.
 CREATE TABLE tournaments (
     tournament_id INT AUTO_INCREMENT PRIMARY KEY,
     tournament_date DATE NOT NULL,
-    status ENUM('Scheduled', 'In_Progress', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
+    status ENUM('Pending', 'Scheduled', 'In_Progress', 'Completed', 'Cancelled') DEFAULT 'Scheduled',
     total_teams INT,
     ace_pot_payout DECIMAL(10,2) DEFAULT 0.00,
     stations INT DEFAULT 6,
     buy_in_per_player DECIMAL(10,2) NOT NULL DEFAULT 5.00,
-    payout_config JSON NULL
+    payout_config JSON NULL,
+    first_payout DECIMAL(10,2),
+    second_payout DECIMAL(10,2),
+    season_id INT NULL,
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );
 
 -- Main player registry
+-- Full current schema (migrated end state): includes the lifetime_* /
+-- seasonal_wins / average_place columns used by the season archive.
 CREATE TABLE registered_players (
     player_id INT AUTO_INCREMENT PRIMARY KEY,
     player_name VARCHAR(100) NOT NULL,
     nickname VARCHAR(50) NULL,
     division ENUM('Pro', 'Am', 'Junior') NOT NULL,
     seasonal_points INT DEFAULT 0,
-    seasonal_cash DECIMAL(10,2) DEFAULT 0.00
+    seasonal_cash DECIMAL(10,2) DEFAULT 0.00,
+    lifetime_earnings DECIMAL(10,2) DEFAULT 0.00,
+    lifetime_ace_pots INT DEFAULT 0,
+    events_participated INT DEFAULT 0,
+    seasonal_wins INT DEFAULT 0,
+    average_place DECIMAL(4,2) NULL
 );
 
 -- Tournament player registrations with ace pot tracking
@@ -131,3 +154,4 @@ CREATE INDEX idx_season_year ON season_standings(season_year);
 CREATE INDEX idx_match_tournament ON matches(tournament_id, match_order);
 CREATE INDEX idx_team_tournament ON teams(tournament_id);
 CREATE INDEX idx_username ON users(username);
+CREATE INDEX idx_tournament_season ON tournaments(season_id);

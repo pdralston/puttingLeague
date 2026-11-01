@@ -226,6 +226,10 @@ SESSION_SUMMARY.md
 *.sql.backup
 dump.sql
 
+# Local-only dev/diagnostic tooling (seed scripts, prod-inspection helpers,
+# standalone test harnesses). Not deployed; may contain infra identifiers.
+local/
+
 #Amazon Q context
 project_context.md
 
@@ -234,3 +238,16 @@ project_context.md
 *.env.production
 frontend/.env
 backend/.env
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# ── Public-repo safety: keep installer artifacts & infra details out ──────────
+# Installer downloads / unpacked CLIs — not project code.
+*.zip
+/aws/
+.aws/
+# If a deployment doc with real infra identifiers is ever added at root, ignore it.
+/DEPLOYMENT.md
+dgputt_dump.sql
