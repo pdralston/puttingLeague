@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import random
 from database import db
-from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot, Team, Match
+from models import Tournament, TournamentRegistration, RegisteredPlayer, AcePot, Team, Match, Season
 from routes.auth import require_auth
 
 tournaments_bp = Blueprint('tournaments', __name__)
@@ -110,8 +110,23 @@ def get_tournaments():
             } for t in teams]
         })
     else:
+        # Optional season filter. When omitted (or 'current'), return the current
+        # (not-yet-archived) season whose tournaments have season_id IS NULL.
+        season_param = request.args.get('season_id')
         try:
-            tournaments = Tournament.query.filter_by(season_id=None).order_by(Tournament.tournament_id.desc()).all()
+            query = Tournament.query
+            if season_param and season_param != 'current':
+                try:
+                    season_id = int(season_param)
+                    if season_id <= 0:
+                        return jsonify({'error': 'Invalid season ID'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'error': 'Invalid season ID'}), 400
+                query = query.filter_by(season_id=season_id)
+            else:
+                query = query.filter_by(season_id=None)
+
+            tournaments = query.order_by(Tournament.tournament_id.desc()).all()
             return jsonify([{
                 'tournament_id': t.tournament_id,
                 'tournament_date': t.tournament_date.isoformat() if t.tournament_date else None,
@@ -122,6 +137,23 @@ def get_tournaments():
         except Exception as e:
             print(f"Error fetching tournaments: {e}")
             return jsonify({'error': 'Failed to fetch tournaments'}), 500
+
+
+@tournaments_bp.route('/api/seasons', methods=['GET'])
+def get_seasons():
+    """List archived seasons, most recent first, for the season selector."""
+    try:
+        seasons = Season.query.order_by(Season.end_date.desc(), Season.season_id.desc()).all()
+        return jsonify([{
+            'season_id': s.season_id,
+            'season_name': s.season_name,
+            'start_date': s.start_date.isoformat() if s.start_date else None,
+            'end_date': s.end_date.isoformat() if s.end_date else None,
+            'archived_at': s.archived_at.isoformat() if s.archived_at else None
+        } for s in seasons])
+    except Exception as e:
+        print(f"Error fetching seasons: {e}")
+        return jsonify({'error': 'Failed to fetch seasons'}), 500
 
 @tournaments_bp.route('/api/tournaments', methods=['POST'])
 @require_auth(['Admin', 'Director'])

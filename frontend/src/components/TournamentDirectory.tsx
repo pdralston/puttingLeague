@@ -8,11 +8,22 @@ interface Tournament {
   total_teams?: number;
 }
 
+interface Season {
+  season_id: number;
+  season_name: string;
+  start_date: string | null;
+  end_date: string | null;
+}
+
 interface TournamentDirectoryProps {
   onTournamentSelect: (tournamentId: number) => void;
   onTournamentManage: (tournamentId: number) => void;
   onCreateTournament: () => void;
   onEditPending: (tournamentId: number) => void;
+  // Controlled by App so the selection survives navigating into a tournament
+  // and back. 'current' = active season; otherwise an archived season_id string.
+  selectedSeason: string;
+  onSeasonChange: (season: string) => void;
   userRole?: string;
 }
 
@@ -21,18 +32,43 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
   onTournamentManage, 
   onCreateTournament,
   onEditPending,
+  selectedSeason,
+  onSeasonChange,
   userRole = 'Viewer'
 }) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isArchivedSeason = selectedSeason !== 'current';
+
   useEffect(() => {
-    fetchTournaments();
+    fetchSeasons();
   }, []);
 
-  const fetchTournaments = async () => {
+  useEffect(() => {
+    fetchTournaments(selectedSeason);
+  }, [selectedSeason]);
+
+  const fetchSeasons = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tournaments`, { credentials: 'include' });
+      const response = await fetch(`${API_BASE_URL}/api/seasons`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setSeasons(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch seasons:', error);
+    }
+  };
+
+  const fetchTournaments = async (season: string) => {
+    setLoading(true);
+    try {
+      const url = season === 'current'
+        ? `${API_BASE_URL}/api/tournaments`
+        : `${API_BASE_URL}/api/tournaments?season_id=${encodeURIComponent(season)}`;
+      const response = await fetch(url, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setTournaments(data);
@@ -68,23 +104,43 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
   };
 
   const isAdminOrDirector = userRole === 'Admin' || userRole === 'Director';
+  // Management actions (Manage / Edit / Delete) only apply to the current season.
+  // Archived seasons are read-only, so only "View" is offered there.
+  const showManagementActions = isAdminOrDirector && !isArchivedSeason;
   const visibleTournaments = isAdminOrDirector
     ? tournaments
     : tournaments.filter(t => t.status !== 'Pending');
-
-  if (loading) return <div className="loading">Loading tournaments...</div>;
 
   return (
     <div className="tournament-directory">
       <div className="page-header">
         <h2>Tournaments</h2>
-        {(userRole === 'Admin' || userRole === 'Director') && (
-          <button className="create-tournament-button" onClick={onCreateTournament}>
-            Create Tournament
-          </button>
-        )}
+        <div className="page-header-actions">
+          <label className="season-selector">
+            <span>Season:</span>
+            <select
+              value={selectedSeason}
+              onChange={(e) => onSeasonChange(e.target.value)}
+            >
+              <option value="current">Current Season</option>
+              {seasons.map(season => (
+                <option key={season.season_id} value={String(season.season_id)}>
+                  {season.season_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isAdminOrDirector && !isArchivedSeason && (
+            <button className="create-tournament-button" onClick={onCreateTournament}>
+              Create Tournament
+            </button>
+          )}
+        </div>
       </div>
-      
+
+      {loading ? (
+        <div className="loading">Loading tournaments...</div>
+      ) : (
       <div className="table-container">
         <table className="tournaments-table">
           <thead>
@@ -104,7 +160,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
                 <td>
                   <div className="action-buttons">
                     {tournament.status === 'Pending' ? (
-                      isAdminOrDirector && (
+                      showManagementActions && (
                         <button className="manage-button" onClick={() => onEditPending(tournament.tournament_id)}>
                           Edit
                         </button>
@@ -114,14 +170,14 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
                         <button className="view-button" onClick={() => onTournamentSelect(tournament.tournament_id)}>
                           View
                         </button>
-                        {isAdminOrDirector && (
+                        {showManagementActions && (
                           <button className="manage-button" onClick={() => onTournamentManage(tournament.tournament_id)}>
                             Manage
                           </button>
                         )}
                       </>
                     )}
-                    {userRole === 'Admin' && (
+                    {userRole === 'Admin' && !isArchivedSeason && (
                       <button className="delete-button" onClick={(e) => handleDelete(tournament.tournament_id, e)}>
                         Delete
                       </button>
@@ -136,6 +192,7 @@ const TournamentDirectory: React.FC<TournamentDirectoryProps> = ({
           <div className="empty-state">No tournaments found.</div>
         )}
       </div>
+      )}
     </div>
   );
 };
