@@ -7,6 +7,7 @@ from models import (
     Team, Match, AcePot, TeamHistory,
 )
 from routes.auth import require_auth
+from routes.matches import _is_team_undefeated
 
 archive_bp = Blueprint('archive', __name__)
 
@@ -256,8 +257,19 @@ def perform_archive():
             player.lifetime_earnings = (player.lifetime_earnings or Decimal('0')) + \
                 (player.seasonal_cash or Decimal('0'))
 
-            # Count ace pot buy-ins this season
-            ace_pot_wins = sum(1 for r in player_regs if r.bought_ace_pot)
+            # Count ace pot WINS this season: the player was on a team that
+            # finished 1st AND went undefeated. (Previously this incorrectly
+            # counted ace-pot buy-ins via bought_ace_pot.)
+            ace_pot_wins = 0
+            winning_teams = Team.query.filter(
+                db.or_(Team.player1_id == player.player_id,
+                       Team.player2_id == player.player_id),
+                Team.tournament_id.in_(completed_ids),
+                Team.final_place == 1
+            ).all()
+            for wt in winning_teams:
+                if _is_team_undefeated(wt.tournament_id, wt.team_id):
+                    ace_pot_wins += 1
             player.lifetime_ace_pots = (player.lifetime_ace_pots or 0) + ace_pot_wins
 
             # Events participated
